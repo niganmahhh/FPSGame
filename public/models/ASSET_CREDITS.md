@@ -24,11 +24,24 @@ included.
   - `cc0-m4a1.glb`
   - `cc0-sniper.glb`
 
+## 3dmodelscc0 Melee Weapons Pack
+
+- Source: https://3dmodelscc0.itch.io/free-cc0-melee-weapons-pack
+- GLB mirror used for conversion: https://github.com/BoQsc/cc0-melee-weapons-pack-glb
+- License: Public Domain (CC0)
+- Used files:
+  - `cc0-combat-knife.glb`
+  - `cc0-dagger.glb`
+  - `cc0-katana.glb`
+  - `cc0-kunai.glb`
+  - `cc0-machete.glb`
+
 ## Poly Pizza Models
 
 - Assault Rifle by Quaternius: https://poly.pizza/m/K2lXTYFSLC, Public Domain (CC0)
 - Sniper Rifle by Quaternius: https://poly.pizza/m/i65hEldsw6, Public Domain (CC0)
 - Butcher Knife by CreativeTrio: https://poly.pizza/m/g9CmWftE5e, Public Domain (CC0)
+- Butterfly Knife by Ginsta: https://poly.pizza/m/FnD4lI5Wz1, Creative Commons Attribution
 - Cactoro by Quaternius: https://poly.pizza/m/IGn9lhdama, Public Domain (CC0)
 - Ninja by Quaternius: https://poly.pizza/m/xGYmeDpfTu, Public Domain (CC0)
 - Animated Woman by Quaternius: https://poly.pizza/m/9kF7eTDbhO, Public Domain (CC0)

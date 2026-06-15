@@ -33,14 +33,14 @@ Open the local Vite URL, press `ENTER RANGE`, then click to lock mouse control.
 - `4`: Blackout Heavy Sniper
 - `5`: Thunder M4 Prototype
 - `6`: Ember Beast AK
-- `3` / `Q`: cycle knives
+- `3` / `Q`: cycle katana, butterfly knife, dagger, combat knife, kunai, and machete
 
 ## Features
 
 - Three.js 3D training range with shadows, fog, targets, cover, catwalks, and containers.
 - Third-person and first-person camera modes.
 - Mouse direction fixed to normal FPS behavior.
-- CC0 AK-47, M4A1, sniper, and knife loadout with procedural fallbacks.
+- CC0/redistributable AK-47, M4A1, sniper, katana, butterfly knife, dagger, combat knife, kunai, and machete loadout with procedural fallbacks.
 - Right-click sniper scope overlay and zoom.
 - Simple Web Audio firearm, reload, slash, hit, and damage sounds.
 - Female fighter player avatar with first-person and third-person presentation.

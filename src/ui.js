@@ -294,7 +294,7 @@ export function createHud(root) {
     cameraModeValue.textContent = state.cameraMode === 'first' ? 'First V' : 'Third V';
 
     equipmentList.textContent = '';
-    state.equipmentSlots.slice(0, 7).forEach((slot, index) => {
+    state.equipmentSlots.forEach((slot, index) => {
       const item = make('span', 'hud-equipment__item', `${slot.hotkey || index + 1} ${slot.shortName || slot.name}`);
       item.dataset.active = String(index === state.activeEquipmentIndex);
       item.dataset.type = slot.type || 'rifle';

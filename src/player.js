@@ -236,6 +236,10 @@ function createAudioKit() {
       noise(0.08, { gain: 0.04, frequency: 1800, q: 1.6 });
       tone(220, 0.08, { type: 'triangle', gain: 0.035, endRatio: 1.45 });
     },
+    equip(isMelee = false) {
+      tone(isMelee ? 310 : 230, 0.055, { type: 'triangle', gain: 0.035, endRatio: isMelee ? 1.35 : 0.82 });
+      window.setTimeout(() => tone(isMelee ? 470 : 285, 0.045, { type: 'square', gain: 0.022, endRatio: 0.74 }), 58);
+    },
     hit(eliminated = false) {
       tone(eliminated ? 520 : 390, 0.09, { type: 'triangle', gain: eliminated ? 0.08 : 0.05, endRatio: 1.25 });
     },
@@ -493,6 +497,7 @@ export function createPlayerController({ camera, canvas, hud, raycaster, world, 
     state.reloadProgress = 0;
     syncStateFromEquipment();
     refreshEquipmentModels();
+    audio.equip(state.isMelee);
     state.message = state.isMelee ? 'knife_ready' : 'weapon_ready';
     callOptional(hud?.flashMessage, `${state.weaponName} ready`);
   }

@@ -25,7 +25,11 @@ Example:
       "maxSize": 1.5,
       "rotation": [-0.15, 0, -0.62]
     },
-    "butterfly-knife": "butterfly-knife.glb"
+    "butterfly-knife": "butterfly-knife.glb",
+    "shadow-dagger": "shadow-dagger.glb",
+    "combat-knife": "combat-knife.glb",
+    "kunai-blade": "kunai.glb",
+    "machete-blade": "machete.glb"
   },
   "avatar": {
     "player": {
@@ -55,6 +59,10 @@ Supported weapon ids:
 - `ember-ak`
 - `dragon-blade`
 - `butterfly-knife`
+- `shadow-dagger`
+- `combat-knife`
+- `kunai-blade`
+- `machete-blade`
 
 If `mods.json` or any private GLB is missing, the game automatically falls
 back to the included CC0 models.

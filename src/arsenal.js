@@ -131,17 +131,17 @@ export const LOADOUT = [
   {
     id: 'dragon-blade',
     type: 'knife',
-    name: 'Dragon Blade',
-    shortName: 'DRAGON',
+    name: 'Dragon Katana',
+    shortName: 'KATANA',
     hotkey: '3',
-    fireInterval: 0.52,
-    damage: 120,
-    range: 4.2,
+    fireInterval: 0.56,
+    damage: 130,
+    range: 4.45,
     recoil: 0.018,
     asset: {
-      file: 'butcher-knife.glb',
-      maxSize: 1.45,
-      rotation: [-0.15, 0, -0.62],
+      file: 'cc0-katana.glb',
+      maxSize: 1.88,
+      rotation: [-0.18, 0, -0.72],
     },
     palette: {
       body: 0x312018,
@@ -156,15 +156,108 @@ export const LOADOUT = [
     name: 'Butterfly Knife',
     shortName: 'BUTTER',
     hotkey: 'Q',
-    fireInterval: 0.42,
-    damage: 95,
-    range: 3.7,
+    fireInterval: 0.4,
+    damage: 92,
+    range: 3.62,
     recoil: 0.014,
+    asset: {
+      file: 'butterfly-knife.glb',
+      maxSize: 1.12,
+      rotation: [-0.12, 0, -0.56],
+    },
     palette: {
       body: 0x1d2631,
       metal: 0xcbd7df,
       accent: 0x9b7cff,
       glow: 0xb5a1ff,
+    },
+  },
+  {
+    id: 'shadow-dagger',
+    type: 'knife',
+    name: 'Shadow Dagger',
+    shortName: 'DAGGER',
+    hotkey: 'Q',
+    fireInterval: 0.42,
+    damage: 98,
+    range: 3.72,
+    recoil: 0.014,
+    asset: {
+      file: 'cc0-dagger.glb',
+      maxSize: 1.25,
+      rotation: [-0.12, 0, -0.58],
+    },
+    palette: {
+      body: 0x1d2631,
+      metal: 0xcbd7df,
+      accent: 0x9b7cff,
+      glow: 0xb5a1ff,
+    },
+  },
+  {
+    id: 'combat-knife',
+    type: 'knife',
+    name: 'Tactical Combat Knife',
+    shortName: 'TACTIC',
+    hotkey: 'Q',
+    fireInterval: 0.38,
+    damage: 90,
+    range: 3.55,
+    recoil: 0.012,
+    asset: {
+      file: 'cc0-combat-knife.glb',
+      maxSize: 1.15,
+      rotation: [-0.1, 0, -0.55],
+    },
+    palette: {
+      body: 0x172026,
+      metal: 0xbfc7c9,
+      accent: 0x58f2a0,
+      glow: 0x78ffd1,
+    },
+  },
+  {
+    id: 'kunai-blade',
+    type: 'knife',
+    name: 'Silent Kunai',
+    shortName: 'KUNAI',
+    hotkey: 'Q',
+    fireInterval: 0.36,
+    damage: 82,
+    range: 3.45,
+    recoil: 0.011,
+    asset: {
+      file: 'cc0-kunai.glb',
+      maxSize: 1.05,
+      rotation: [-0.08, 0, -0.5],
+    },
+    palette: {
+      body: 0x14171b,
+      metal: 0xc8d4dd,
+      accent: 0x70c7ff,
+      glow: 0x8de4ff,
+    },
+  },
+  {
+    id: 'machete-blade',
+    type: 'knife',
+    name: 'Heavy Machete',
+    shortName: 'MACHETE',
+    hotkey: 'Q',
+    fireInterval: 0.48,
+    damage: 112,
+    range: 4.05,
+    recoil: 0.016,
+    asset: {
+      file: 'cc0-machete.glb',
+      maxSize: 1.42,
+      rotation: [-0.16, 0, -0.64],
+    },
+    palette: {
+      body: 0x271f18,
+      metal: 0xd7d1bd,
+      accent: 0xff6b35,
+      glow: 0xffb35a,
     },
   },
 ];
@@ -290,6 +383,45 @@ function createKnifeModel(THREE, item) {
   return group;
 }
 
+function tintExternalEquipment(THREE, holder, item) {
+  const palette = item.palette;
+  if (!palette) {
+    return;
+  }
+
+  const accentColor = new THREE.Color(palette.accent);
+  const glowColor = new THREE.Color(palette.glow ?? palette.accent);
+  const boostedSkin =
+    item.type === 'knife' ||
+    item.id.includes('storm') ||
+    item.id.includes('ember') ||
+    item.type === 'sniper';
+  const tintStrength = boostedSkin ? 0.28 : 0.1;
+  const emissiveStrength = boostedSkin ? 0.22 : 0.06;
+
+  holder.traverse((child) => {
+    if (!child.isMesh || !child.material) {
+      return;
+    }
+
+    const materials = Array.isArray(child.material) ? child.material : [child.material];
+    const tintedMaterials = materials.map((material) => {
+      const nextMaterial = material.clone();
+      if (nextMaterial.color) {
+        nextMaterial.color.lerp(accentColor, tintStrength);
+      }
+      if (nextMaterial.emissive) {
+        nextMaterial.emissive.copy(glowColor);
+        nextMaterial.emissiveIntensity = Math.max(nextMaterial.emissiveIntensity ?? 0, emissiveStrength);
+      }
+      nextMaterial.needsUpdate = true;
+      return nextMaterial;
+    });
+
+    child.material = Array.isArray(child.material) ? tintedMaterials : tintedMaterials[0];
+  });
+}
+
 export function createEquipmentModel(THREE, item, mode = 'third') {
   const group = new THREE.Group();
   const fallback = item.type === 'knife' ? createKnifeModel(THREE, item) : createRifleModel(THREE, item);
@@ -301,7 +433,11 @@ export function createEquipmentModel(THREE, item, mode = 'third') {
       overrideGroup: 'weapons',
       overrideKey: item.id,
       ...item.asset,
-    }, fallback);
+    }, fallback, {
+      onLoaded(holder) {
+        tintExternalEquipment(THREE, holder, item);
+      },
+    });
   }
 
   if (mode === 'first') {
