@@ -32,6 +32,8 @@ export function createWorld({ scene, THREE }) {
     player: {
       position: null,
       health: 100,
+      pointerLocked: false,
+      hasEngaged: false,
     },
   };
 
@@ -266,6 +268,10 @@ export function createWorld({ scene, THREE }) {
   function update(delta, elapsed) {
     state.elapsed = elapsed;
 
+    if (state.player.pointerLocked && state.player.health > 0) {
+      state.player.hasEngaged = true;
+    }
+
     if (state.comboTimer > 0) {
       state.comboTimer = Math.max(0, state.comboTimer - delta);
       if (state.comboTimer === 0) {
@@ -395,6 +401,13 @@ export function createWorld({ scene, THREE }) {
   }
 
   function updateMonster(monster, delta, elapsed) {
+    if (monster.waitForEngage && !state.player.hasEngaged) {
+      monster.active = false;
+      monster.group.visible = false;
+      monster.hitbox.userData.active = false;
+      return;
+    }
+
     if (!monster.active) {
       monster.cooldown -= delta;
 
@@ -414,12 +427,14 @@ export function createWorld({ scene, THREE }) {
     const playerVector = playerPosition?.isVector3 ? playerPosition : null;
     const desired = monster.tempVector;
 
-    if (playerVector) {
+    const playerEngaged = Boolean(state.player.pointerLocked && state.player.health > 0);
+
+    if (playerVector && playerEngaged) {
       desired.subVectors(playerVector, monster.group.position);
       desired.y = 0;
     }
 
-    const distanceToPlayer = playerVector ? desired.length() : Infinity;
+    const distanceToPlayer = playerVector && playerEngaged ? desired.length() : Infinity;
 
     if (distanceToPlayer < monster.aggroRange && distanceToPlayer > 0.001) {
       desired.normalize();
@@ -974,6 +989,7 @@ function createMonster(THREE, options) {
   const group = new THREE.Group();
   group.name = `hostile-${id}`;
   group.position.copy(position);
+  group.visible = false;
 
   const fallback = new THREE.Group();
   fallback.name = `${id}-fallback-body`;
@@ -1035,7 +1051,7 @@ function createMonster(THREE, options) {
   hitbox.scale.set(1.18, 2.25, 1.05);
   hitbox.castShadow = false;
   hitbox.receiveShadow = false;
-  hitbox.userData.active = true;
+  hitbox.userData.active = false;
   group.add(hitbox);
 
   const healthBack = new THREE.Mesh(boxGeometry, new THREE.MeshBasicMaterial({
@@ -1060,9 +1076,10 @@ function createMonster(THREE, options) {
     group,
     mesh: hitbox,
     hitbox,
-    active: true,
+    active: false,
     cooldown: 0,
     respawnDelay,
+    waitForEngage: options.waitForEngage !== false,
     scoreValue,
     maxHealth: health,
     health,

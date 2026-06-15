@@ -14,6 +14,16 @@ included.
   - `sniper-rifle.glb`
   - `sniper-rifle-alt.glb`
 
+## 3dmodelscc0 Guns & Explosives Pack
+
+- Source: https://3dmodelscc0.itch.io/free-cc0-guns-explosives-pack
+- GLB mirror used for conversion: https://github.com/BoQsc/cc0-guns-explosives-pack-glb
+- License: Public Domain (CC0)
+- Used files:
+  - `cc0-ak47.glb`
+  - `cc0-m4a1.glb`
+  - `cc0-sniper.glb`
+
 ## Poly Pizza Models
 
 - Assault Rifle by Quaternius: https://poly.pizza/m/K2lXTYFSLC, Public Domain (CC0)
@@ -22,3 +32,4 @@ included.
 - Cactoro by Quaternius: https://poly.pizza/m/IGn9lhdama, Public Domain (CC0)
 - Ninja by Quaternius: https://poly.pizza/m/xGYmeDpfTu, Public Domain (CC0)
 - Animated Woman by Quaternius: https://poly.pizza/m/9kF7eTDbhO, Public Domain (CC0)
+- Female Fighter by mastjie: https://poly.pizza/m/NfMffTkeBa, Public Domain (CC0)

@@ -40,10 +40,11 @@ Open the local Vite URL, press `ENTER RANGE`, then click to lock mouse control.
 - Three.js 3D training range with shadows, fog, targets, cover, catwalks, and containers.
 - Third-person and first-person camera modes.
 - Mouse direction fixed to normal FPS behavior.
-- Rifle, M4, sniper, and knife loadout.
+- CC0 AK-47, M4A1, sniper, and knife loadout with procedural fallbacks.
 - Right-click sniper scope overlay and zoom.
 - Simple Web Audio firearm, reload, slash, hit, and damage sounds.
-- Hostile Cactoro enemy AI that patrols, chases, attacks, takes damage, and respawns.
+- Female fighter player avatar with first-person and third-person presentation.
+- Hostile enemy AI that patrols before engagement, then chases, attacks, takes damage, and respawns.
 - External CC0 GLB models loaded from `public/models`, with procedural fallback models.
 - Optional private local mod overrides from ignored `public/private-mods/mods.json`.
 

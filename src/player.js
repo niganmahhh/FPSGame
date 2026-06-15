@@ -298,7 +298,7 @@ function createAvatar(THREE) {
     {
       overrideGroup: 'avatar',
       overrideKey: 'player',
-      file: 'animated-woman.glb',
+      file: 'female-fighter.glb',
       maxSize: 1.82,
       alignBottom: true,
       rotation: [0, Math.PI, 0],
@@ -1082,6 +1082,7 @@ export function createPlayerController({ camera, canvas, hud, raycaster, world, 
     if (world?.state?.player) {
       world.state.player.position = state.position;
       world.state.player.health = state.health;
+      world.state.player.pointerLocked = state.pointerLocked;
       world.state.player.ammo = state.ammo;
       world.state.player.combo = state.combo;
       world.state.player.cameraMode = state.cameraMode;

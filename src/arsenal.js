@@ -15,8 +15,8 @@ export const LOADOUT = [
     range: 88,
     recoil: 0.032,
     asset: {
-      file: 'assault-rifle.glb',
-      maxSize: 1.74,
+      file: 'cc0-ak47.glb',
+      maxSize: 2.15,
       rotation: [0, Math.PI, 0],
     },
     palette: {
@@ -40,8 +40,8 @@ export const LOADOUT = [
     range: 94,
     recoil: 0.022,
     asset: {
-      file: 'assault-rifle-alt.glb',
-      maxSize: 1.68,
+      file: 'cc0-m4a1.glb',
+      maxSize: 2.12,
       rotation: [0, Math.PI, 0],
     },
     palette: {
@@ -67,8 +67,8 @@ export const LOADOUT = [
     adsFov: 38,
     scopedFov: 17,
     asset: {
-      file: 'sniper-rifle.glb',
-      maxSize: 2.24,
+      file: 'cc0-sniper.glb',
+      maxSize: 2.45,
       rotation: [0, Math.PI, 0],
     },
     palette: {
@@ -92,8 +92,8 @@ export const LOADOUT = [
     range: 96,
     recoil: 0.018,
     asset: {
-      file: 'assault-rifle-alt.glb',
-      maxSize: 1.72,
+      file: 'cc0-m4a1.glb',
+      maxSize: 2.16,
       rotation: [0, Math.PI, 0],
     },
     palette: {
@@ -117,8 +117,8 @@ export const LOADOUT = [
     range: 86,
     recoil: 0.03,
     asset: {
-      file: 'assault-rifle.glb',
-      maxSize: 1.76,
+      file: 'cc0-ak47.glb',
+      maxSize: 2.18,
       rotation: [0, Math.PI, 0],
     },
     palette: {
