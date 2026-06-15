@@ -6,6 +6,7 @@ import './styles.css';
 
 const canvas = document.querySelector('#game');
 const startButton = document.querySelector('#startButton');
+const cameraToggleButton = document.querySelector('#cameraToggleButton');
 
 const renderer = new THREE.WebGLRenderer({
   canvas,
@@ -25,6 +26,7 @@ scene.background = new THREE.Color(0x11161c);
 scene.fog = new THREE.Fog(0x11161c, 32, 92);
 
 const camera = new THREE.PerspectiveCamera(58, window.innerWidth / window.innerHeight, 0.1, 180);
+scene.add(camera);
 const clock = new THREE.Clock();
 const raycaster = new THREE.Raycaster();
 const hud = createHud(document.querySelector('#hud'));
@@ -41,6 +43,11 @@ const player = createPlayerController({
 startButton.addEventListener('click', () => {
   player.requestPointerLock();
   startButton.classList.add('hidden');
+});
+
+cameraToggleButton.addEventListener('click', () => {
+  const mode = player.toggleCameraMode();
+  cameraToggleButton.textContent = mode === 'first' ? '第一人称' : '第三人称';
 });
 
 document.addEventListener('pointerlockchange', () => {
@@ -65,6 +72,7 @@ function animate() {
   world.update(delta, elapsed);
   player.update(delta, elapsed);
   hud.update(player.state, world.state);
+  cameraToggleButton.textContent = player.state.cameraMode === 'first' ? '第一人称' : '第三人称';
 
   renderer.render(scene, camera);
 }

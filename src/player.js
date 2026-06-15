@@ -1,7 +1,14 @@
+import { LOADOUT, createEquipmentModel } from './arsenal.js';
+
 const MOVE_SPEED = 5.4;
 const SPRINT_SPEED = 8.2;
+const CROUCH_SPEED = 3.1;
 const ACCELERATION = 18;
 const FRICTION = 16;
+const AIR_ACCELERATION = 7;
+const AIR_CONTROL = 0.58;
+const GRAVITY = 24;
+const JUMP_SPEED = 8.4;
 const MOUSE_SENSITIVITY = 0.0022;
 const MIN_PITCH = -0.92;
 const MAX_PITCH = 0.72;
@@ -51,18 +58,25 @@ function getArenaBounds(world) {
   return world?.bounds ?? world?.arenaBounds ?? world?.state?.bounds ?? null;
 }
 
-function applyGroundAndBounds(position, world) {
-  const groundHeight =
+function getGroundHeight(position, world) {
+  return (
     world?.getGroundHeight?.(position.x, position.z) ??
     world?.getHeightAt?.(position.x, position.z) ??
     world?.state?.groundY ??
-    0;
+    0
+  );
+}
 
-  position.y = groundHeight;
+function applyGroundAndBounds(position, world, options = {}) {
+  const groundHeight = getGroundHeight(position, world);
+
+  if (options.snapToGround !== false) {
+    position.y = groundHeight;
+  }
 
   const bounds = getArenaBounds(world);
   if (!bounds) {
-    return;
+    return groundHeight;
   }
 
   const minX = bounds.minX ?? bounds.min?.x ?? -Infinity;
@@ -72,6 +86,7 @@ function applyGroundAndBounds(position, world) {
 
   position.x = clamp(position.x, minX, maxX);
   position.z = clamp(position.z, minZ, maxZ);
+  return groundHeight;
 }
 
 function normalizeTargets(world) {
@@ -137,12 +152,6 @@ function createAvatar(THREE) {
     roughness: 0.84,
     metalness: 0.12,
   });
-  const accentMaterial = new THREE.MeshStandardMaterial({
-    color: 0xf2c94c,
-    roughness: 0.48,
-    metalness: 0.18,
-  });
-
   const torsoGeometry =
     typeof THREE.CapsuleGeometry === 'function'
       ? new THREE.CapsuleGeometry(0.35, 0.92, 6, 12)
@@ -165,17 +174,10 @@ function createAvatar(THREE) {
   pack.castShadow = true;
   rig.add(pack);
 
-  const rifle = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.12, 0.86), accentMaterial);
-  rifle.name = 'PlayerRifle';
-  rifle.position.set(0.32, 1.24, -0.4);
-  rifle.castShadow = true;
-  rig.add(rifle);
-
-  const barrel = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.06, 0.44), armorMaterial);
-  barrel.name = 'PlayerBarrel';
-  barrel.position.set(0.32, 1.25, -1.05);
-  barrel.castShadow = true;
-  rig.add(barrel);
+  const weaponSocket = new THREE.Group();
+  weaponSocket.name = 'PlayerWeaponSocket';
+  rig.userData.weaponSocket = weaponSocket;
+  rig.add(weaponSocket);
 
   return rig;
 }
@@ -184,6 +186,13 @@ function callOptional(fn, payload) {
   if (typeof fn === 'function') {
     fn(payload);
   }
+}
+
+function hotkeyForSlot(index, item) {
+  if (index === 0) return '1';
+  if (index === 1) return '2';
+  if (item.type === 'knife') return index === 4 ? '3' : '6';
+  return String(index + 2);
 }
 
 export function createPlayerController({ camera, canvas, hud, raycaster, world, THREE }) {
@@ -201,10 +210,19 @@ export function createPlayerController({ camera, canvas, hud, raycaster, world, 
   const pointer = new THREE.Vector2(0, 0);
   const targetFlashes = [];
   const originalMaterials = new WeakMap();
+  const loadout = LOADOUT.map((item) => ({
+    ...item,
+    ammo: item.type === 'rifle' ? item.magazineSize : 0,
+    reserve: item.type === 'rifle' ? item.reserveAmmo : 0,
+  }));
+  let activeEquipmentIndex = 0;
 
   const scene = getScene(world);
   const avatar = createAvatar(THREE);
   const spawnPoint = getSpawnPoint(world, THREE);
+  const firstPersonSocket = new THREE.Group();
+  firstPersonSocket.name = 'FirstPersonEquipmentSocket';
+  camera.add(firstPersonSocket);
 
   if (scene?.add) {
     scene.add(avatar);
@@ -213,17 +231,32 @@ export function createPlayerController({ camera, canvas, hud, raycaster, world, 
   const state = {
     position: spawnPoint.clone(),
     velocity: new THREE.Vector3(),
+    verticalVelocity: 0,
     yaw: 0,
     pitch: -0.12,
     pointerLocked: false,
     moving: false,
     sprinting: false,
+    crouching: false,
+    grounded: true,
+    cameraMode: 'third',
     alive: true,
     maxHealth: 100,
     health: 100,
-    magazineSize: MAGAZINE_SIZE,
-    ammo: MAGAZINE_SIZE,
-    reserveAmmo: RESERVE_AMMO,
+    magazineSize: loadout[0].magazineSize ?? MAGAZINE_SIZE,
+    ammo: loadout[0].ammo,
+    reserveAmmo: loadout[0].reserve,
+    weaponName: loadout[0].name,
+    equipmentType: loadout[0].type,
+    activeEquipmentIndex: 0,
+    equipmentSlots: loadout.map((item, index) => ({
+      id: item.id,
+      name: item.name,
+      shortName: item.shortName,
+      type: item.type,
+      hotkey: hotkeyForSlot(index, item),
+    })),
+    isMelee: false,
     isReloading: false,
     reloadProgress: 0,
     shots: 0,
@@ -255,6 +288,93 @@ export function createPlayerController({ camera, canvas, hud, raycaster, world, 
   let recoilYaw = 0;
   let currentElapsed = 0;
 
+  function activeEquipment() {
+    return loadout[activeEquipmentIndex];
+  }
+
+  function clearGroup(group) {
+    while (group.children.length) {
+      group.remove(group.children[0]);
+    }
+  }
+
+  function syncStateFromEquipment() {
+    const item = activeEquipment();
+    state.magazineSize = item.magazineSize ?? 1;
+    state.ammo = item.ammo ?? 0;
+    state.reserveAmmo = item.reserve ?? 0;
+    state.weaponName = item.name;
+    state.equipmentType = item.type;
+    state.isMelee = item.type === 'knife';
+    state.activeEquipmentIndex = activeEquipmentIndex;
+    state.equipmentSlots = loadout.map((entry) => ({
+      id: entry.id,
+      name: entry.name,
+      shortName: entry.shortName,
+      type: entry.type,
+      hotkey: hotkeyForSlot(loadout.indexOf(entry), entry),
+    }));
+  }
+
+  function saveEquipmentAmmo() {
+    const item = activeEquipment();
+    if (item.type !== 'rifle') {
+      return;
+    }
+
+    item.ammo = state.ammo;
+    item.reserve = state.reserveAmmo;
+  }
+
+  function refreshEquipmentModels() {
+    const item = activeEquipment();
+    const thirdSocket = avatar.userData.weaponSocket ?? avatar;
+    clearGroup(firstPersonSocket);
+    clearGroup(thirdSocket);
+    firstPersonSocket.add(createEquipmentModel(THREE, item, 'first'));
+    thirdSocket.add(createEquipmentModel(THREE, item, 'third'));
+    updateViewVisibility();
+  }
+
+  function updateViewVisibility() {
+    const firstPerson = state.cameraMode === 'first';
+    avatar.visible = !firstPerson;
+    firstPersonSocket.visible = firstPerson;
+  }
+
+  function switchEquipment(index) {
+    const nextIndex = ((index % loadout.length) + loadout.length) % loadout.length;
+    if (nextIndex === activeEquipmentIndex) {
+      return;
+    }
+
+    saveEquipmentAmmo();
+    activeEquipmentIndex = nextIndex;
+    state.isReloading = false;
+    state.reloadProgress = 0;
+    syncStateFromEquipment();
+    refreshEquipmentModels();
+    state.message = state.isMelee ? 'knife_ready' : 'weapon_ready';
+    callOptional(hud?.flashMessage, `${state.weaponName} ready`);
+  }
+
+  function switchToKnife() {
+    const knifeIndex = loadout.findIndex((item) => item.type === 'knife');
+    if (knifeIndex >= 0) {
+      switchEquipment(knifeIndex);
+    }
+  }
+
+  function toggleCameraMode() {
+    state.cameraMode = state.cameraMode === 'first' ? 'third' : 'first';
+    updateViewVisibility();
+    callOptional(hud?.flashMessage, state.cameraMode === 'first' ? '第一人称视角' : '第三人称视角');
+    return state.cameraMode;
+  }
+
+  syncStateFromEquipment();
+  refreshEquipmentModels();
+
   function requestPointerLock() {
     if (document.pointerLockElement !== canvas) {
       canvas.requestPointerLock?.();
@@ -262,7 +382,8 @@ export function createPlayerController({ camera, canvas, hud, raycaster, world, 
   }
 
   function startReload(elapsed) {
-    if (state.isReloading || state.ammo >= state.magazineSize || state.reserveAmmo <= 0) {
+    const item = activeEquipment();
+    if (item.type !== 'rifle' || state.isReloading || state.ammo >= state.magazineSize || state.reserveAmmo <= 0) {
       return;
     }
 
@@ -274,11 +395,14 @@ export function createPlayerController({ camera, canvas, hud, raycaster, world, 
   }
 
   function finishReload() {
+    const item = activeEquipment();
     const needed = state.magazineSize - state.ammo;
     const loaded = Math.min(needed, state.reserveAmmo);
 
     state.ammo += loaded;
     state.reserveAmmo -= loaded;
+    item.ammo = state.ammo;
+    item.reserve = state.reserveAmmo;
     state.isReloading = false;
     state.reloadProgress = 0;
     state.message = 'ready';
@@ -448,7 +572,34 @@ export function createPlayerController({ camera, canvas, hud, raycaster, world, 
   }
 
   function fire(elapsed) {
+    const item = activeEquipment();
     if (!state.alive || state.isReloading || elapsed < nextShotAt) {
+      return;
+    }
+
+    if (item.type === 'knife') {
+      state.shots += 1;
+      state.lastShotAt = elapsed;
+      state.message = 'knife_swing';
+      nextShotAt = elapsed + (item.fireInterval ?? 0.45);
+      state.recoil = Math.min(state.recoil + (item.recoil ?? 0.014), 0.06);
+
+      raycaster.setFromCamera?.(pointer, camera);
+      raycaster.far = item.range ?? 3.8;
+
+      const targets = normalizeTargets(world).filter(targetIsActive);
+      const hits = targets.length ? raycaster.intersectObjects(targets, true) : [];
+      const firstHit = hits.find((hit) => targetIsActive(findTargetRoot(hit.object, targets)));
+
+      if (firstHit) {
+        registerHit(firstHit, targets, elapsed);
+        callOptional(hud?.showHit, 'SLASH');
+      } else {
+        registerMiss();
+      }
+
+      updateAccuracy();
+      callOptional(hud?.onShot, state);
       return;
     }
 
@@ -459,16 +610,17 @@ export function createPlayerController({ camera, canvas, hud, raycaster, world, 
     }
 
     state.ammo -= 1;
+    item.ammo = state.ammo;
     state.shots += 1;
     state.lastShotAt = elapsed;
     state.message = 'firing';
-    nextShotAt = elapsed + FIRE_INTERVAL;
+    nextShotAt = elapsed + (item.fireInterval ?? FIRE_INTERVAL);
 
     recoilYaw += (Math.random() - 0.5) * 0.006;
-    state.recoil = Math.min(state.recoil + 0.026, 0.09);
+    state.recoil = Math.min(state.recoil + (item.recoil ?? 0.026), 0.1);
 
     raycaster.setFromCamera?.(pointer, camera);
-    raycaster.far = RANGE;
+    raycaster.far = item.range ?? RANGE;
 
     const targets = normalizeTargets(world).filter(targetIsActive);
     const hits = targets.length ? raycaster.intersectObjects(targets, true) : [];
@@ -498,7 +650,7 @@ export function createPlayerController({ camera, canvas, hud, raycaster, world, 
       return;
     }
 
-    state.yaw -= event.movementX * MOUSE_SENSITIVITY;
+    state.yaw += event.movementX * MOUSE_SENSITIVITY;
     state.pitch = clamp(state.pitch - event.movementY * MOUSE_SENSITIVITY, MIN_PITCH, MAX_PITCH);
   }
 
@@ -528,6 +680,27 @@ export function createPlayerController({ camera, canvas, hud, raycaster, world, 
     if (event.code === 'KeyR') {
       reloadQueued = true;
     }
+
+    if (event.code === 'KeyV') {
+      toggleCameraMode();
+    }
+
+    if (event.code === 'KeyQ' || event.code === 'Digit3') {
+      switchToKnife();
+      return;
+    }
+
+    const digitMap = {
+      Digit1: 0,
+      Digit2: 1,
+      Digit4: 2,
+      Digit5: 3,
+      Digit6: 5,
+    };
+
+    if (digitMap[event.code] !== undefined) {
+      switchEquipment(digitMap[event.code]);
+    }
   }
 
   function handleKeyUp(event) {
@@ -544,6 +717,7 @@ export function createPlayerController({ camera, canvas, hud, raycaster, world, 
   function updateMovement(delta) {
     const forwardAmount = (keys.has('KeyW') ? 1 : 0) - (keys.has('KeyS') ? 1 : 0);
     const strafeAmount = (keys.has('KeyD') ? 1 : 0) - (keys.has('KeyA') ? 1 : 0);
+    const groundY = getGroundHeight(state.position, world);
 
     horizontalForward.set(Math.sin(state.yaw), 0, -Math.cos(state.yaw)).normalize();
     right.set(horizontalForward.z * -1, 0, horizontalForward.x).normalize();
@@ -561,23 +735,42 @@ export function createPlayerController({ camera, canvas, hud, raycaster, world, 
 
     const wantsSprint =
       keys.has('ShiftLeft') || keys.has('ShiftRight');
-    state.sprinting = wantsSprint && forwardAmount > 0 && state.moving && !state.isReloading;
+    state.crouching = keys.has('ControlLeft') || keys.has('ControlRight') || keys.has('KeyC');
+    state.sprinting = wantsSprint && forwardAmount > 0 && state.moving && state.grounded && !state.crouching && !state.isReloading;
 
-    const speed = state.sprinting ? SPRINT_SPEED : MOVE_SPEED;
+    const baseSpeed = state.crouching ? CROUCH_SPEED : state.sprinting ? SPRINT_SPEED : MOVE_SPEED;
     const movementPenalty = forwardAmount < 0 ? 0.72 : strafeAmount !== 0 && forwardAmount === 0 ? 0.88 : 1;
+    const airbornePenalty = state.grounded ? 1 : AIR_CONTROL;
+    const speed = baseSpeed * movementPenalty * airbornePenalty;
 
-    desiredVelocity.copy(moveInput).multiplyScalar(speed * movementPenalty);
+    desiredVelocity.copy(moveInput).multiplyScalar(speed);
 
-    const blend = expDamp(state.moving ? ACCELERATION : FRICTION, delta);
+    if ((keys.has('Space') || keys.has('KeyX')) && state.grounded && !state.crouching) {
+      state.verticalVelocity = JUMP_SPEED;
+      state.grounded = false;
+      state.message = 'jump';
+    }
+
+    const blend = expDamp(state.grounded ? (state.moving ? ACCELERATION : FRICTION) : AIR_ACCELERATION, delta);
     state.velocity.lerp(desiredVelocity, blend);
     state.position.addScaledVector(state.velocity, delta);
+    state.verticalVelocity -= GRAVITY * delta;
+    state.position.y += state.verticalVelocity * delta;
 
     const constrained = world?.constrainPlayerPosition?.(state.position, state.velocity);
     if (constrained?.isVector3) {
       state.position.copy(constrained);
     }
 
-    applyGroundAndBounds(state.position, world);
+    applyGroundAndBounds(state.position, world, { snapToGround: false });
+
+    if (state.position.y <= groundY) {
+      state.position.y = groundY;
+      state.verticalVelocity = 0;
+      state.grounded = true;
+    } else {
+      state.grounded = false;
+    }
 
     avatar.position.copy(state.position);
     avatar.rotation.y = state.yaw;
@@ -593,13 +786,18 @@ export function createPlayerController({ camera, canvas, hud, raycaster, world, 
 
     horizontalForward.set(Math.sin(state.yaw), 0, -Math.cos(state.yaw)).normalize();
     right.set(horizontalForward.z * -1, 0, horizontalForward.x).normalize();
-    cameraFocus.copy(state.position).add(new THREE.Vector3(0, 1.35, 0));
+    const eyeHeight = state.crouching ? 1.05 : 1.52;
+    cameraFocus.copy(state.position).add(new THREE.Vector3(0, eyeHeight, 0));
 
-    desiredCameraPosition
-      .copy(cameraFocus)
-      .addScaledVector(horizontalForward, -CAMERA_DISTANCE)
-      .addScaledVector(right, SHOULDER_OFFSET);
-    desiredCameraPosition.y += CAMERA_HEIGHT - state.pitch * 0.8;
+    if (state.cameraMode === 'first') {
+      desiredCameraPosition.copy(cameraFocus).addScaledVector(horizontalForward, 0.12);
+    } else {
+      desiredCameraPosition
+        .copy(cameraFocus)
+        .addScaledVector(horizontalForward, -CAMERA_DISTANCE)
+        .addScaledVector(right, SHOULDER_OFFSET);
+      desiredCameraPosition.y += CAMERA_HEIGHT - state.pitch * 0.8;
+    }
 
     const cameraBlend = expDamp(CAMERA_SMOOTHING, delta);
     if (camera.position.lengthSq() === 0) {
@@ -614,6 +812,10 @@ export function createPlayerController({ camera, canvas, hud, raycaster, world, 
       0,
     );
     camera.position.add(cameraJitter);
+    firstPersonSocket.position.x = Math.sin(elapsed * 7.5) * (state.moving ? 0.012 : 0.004);
+    firstPersonSocket.position.y = Math.abs(Math.cos(elapsed * 7.5)) * (state.moving ? 0.018 : 0.006) - state.recoil * 0.55;
+    firstPersonSocket.rotation.z = Math.sin(elapsed * 5.2) * (state.moving ? 0.018 : 0.006);
+    updateViewVisibility();
 
     aimTarget.copy(cameraFocus).addScaledVector(aimDirection, 18);
     camera.lookAt(aimTarget);
@@ -685,6 +887,9 @@ export function createPlayerController({ camera, canvas, hud, raycaster, world, 
       world.state.player.health = state.health;
       world.state.player.ammo = state.ammo;
       world.state.player.combo = state.combo;
+      world.state.player.cameraMode = state.cameraMode;
+      world.state.player.weaponName = state.weaponName;
+      world.state.player.grounded = state.grounded;
     }
   }
 
@@ -700,6 +905,8 @@ export function createPlayerController({ camera, canvas, hud, raycaster, world, 
   return {
     state,
     requestPointerLock,
+    toggleCameraMode,
+    switchEquipment,
     update,
     takeDamage,
   };

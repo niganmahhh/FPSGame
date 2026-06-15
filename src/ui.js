@@ -73,6 +73,10 @@ function readHudState(playerState = {}, worldState = {}) {
   const ammo = numberFrom(pick(playerState, ['ammo', 'magAmmo', 'currentAmmo', 'weapon.ammo'], 30), 30);
   const magSize = numberFrom(pick(playerState, ['magazineSize', 'magSize', 'weapon.magazineSize', 'weapon.magSize'], 30), 30);
   const reserve = numberFrom(pick(playerState, ['reserveAmmo', 'ammoReserve', 'weapon.reserveAmmo'], 90), 90);
+  const isMelee = Boolean(pick(playerState, ['isMelee', 'weapon.isMelee'], false));
+  const cameraMode = pick(playerState, ['cameraMode', 'viewMode'], 'third');
+  const activeEquipmentIndex = numberFrom(pick(playerState, ['activeEquipmentIndex', 'weapon.index'], 0), 0);
+  const equipmentSlots = Array.isArray(playerState.equipmentSlots) ? playerState.equipmentSlots : [];
   const score = numberFrom(pick(worldState, ['score', 'points'], pick(playerState, ['score'], 0)), 0);
   const wave = numberFrom(pick(worldState, ['wave', 'stage', 'round'], 1), 1);
   const elapsed = numberFrom(pick(worldState, ['elapsed', 'time', 'elapsedTime'], NaN), NaN);
@@ -103,6 +107,10 @@ function readHudState(playerState = {}, worldState = {}) {
     ammo,
     magSize,
     reserve,
+    isMelee,
+    cameraMode,
+    activeEquipmentIndex,
+    equipmentSlots,
     score,
     wave,
     elapsed,
@@ -203,7 +211,14 @@ export function createHud(root) {
   ammoTrack.append(ammoFill);
   ammoPanel.append(weaponName, ammoWrap, ammoTrack);
 
-  bottomBar.append(vitals, ammoPanel);
+  const equipmentPanel = make('section', 'hud-equipment');
+  const cameraModeValue = make('button', 'hud-camera-mode', '第三人称 V');
+  cameraModeValue.type = 'button';
+  cameraModeValue.tabIndex = -1;
+  const equipmentList = make('div', 'hud-equipment__list');
+  equipmentPanel.append(cameraModeValue, equipmentList);
+
+  bottomBar.append(vitals, equipmentPanel, ammoPanel);
 
   const lockPanel = make('section', 'hud-lock-panel');
   const lockTitle = make('strong', 'hud-lock-panel__title', 'MOUSE UNLOCKED');
@@ -254,13 +269,30 @@ export function createHud(root) {
     armorMeter.value.textContent = `${Math.round(state.armor)}`;
     armorMeter.fill.style.width = `${percent(state.armor, state.maxArmor)}%`;
     weaponName.textContent = state.weaponName;
-    ammoValue.textContent = String(Math.max(0, Math.round(state.ammo)));
-    reserveValue.textContent = `/ ${Math.max(0, Math.round(state.reserve))}`;
-    ammoFill.style.width = `${percent(state.ammo, state.magSize)}%`;
+    cameraModeValue.textContent = state.cameraMode === 'first' ? '第一人称 V' : '第三人称 V';
+
+    equipmentList.textContent = '';
+    state.equipmentSlots.slice(0, 6).forEach((slot, index) => {
+      const item = make('span', 'hud-equipment__item', `${slot.hotkey || index + 1} ${slot.shortName || slot.name}`);
+      item.dataset.active = String(index === state.activeEquipmentIndex);
+      item.dataset.type = slot.type || 'rifle';
+      equipmentList.append(item);
+    });
+
+    if (state.isMelee) {
+      ammoValue.textContent = 'MELEE';
+      reserveValue.textContent = 'Q / 3';
+      ammoFill.style.width = '100%';
+    } else {
+      ammoValue.textContent = String(Math.max(0, Math.round(state.ammo)));
+      reserveValue.textContent = `/ ${Math.max(0, Math.round(state.reserve))}`;
+      ammoFill.style.width = `${percent(state.ammo, state.magSize)}%`;
+    }
 
     const criticalHealth = state.health <= state.maxHealth * 0.3;
     vitals.dataset.critical = String(criticalHealth);
-    ammoPanel.dataset.low = String(state.ammo <= Math.max(1, state.magSize * 0.25));
+    ammoPanel.dataset.low = String(!state.isMelee && state.ammo <= Math.max(1, state.magSize * 0.25));
+    ammoPanel.dataset.melee = String(state.isMelee);
     firstScreen.dataset.visible = String(!hasStarted && !state.pointerLocked);
     lockPanel.dataset.visible = String(hasStarted && (!state.pointerLocked || state.paused || !state.isAlive));
 
@@ -351,6 +383,7 @@ export function createHud(root) {
     update,
     showHit,
     setMessage,
+    flashMessage,
     onShot() {
       root.dataset.shot = 'true';
       window.clearTimeout(shotTimer);
