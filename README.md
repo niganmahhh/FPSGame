@@ -1,30 +1,57 @@
 # FPSGame
 
-Web based 第三人称战术射击新手训练场，使用 Vite + Three.js 构建。
+Web-based tactical training range built with Vite, Three.js, GLB model loading,
+first/third-person camera switching, firearms, sniper aiming, knives, moving
+targets, and hostile AI.
 
-## 运行
+Live site:
+
+https://niganmahhh.github.io/FPSGame/
+
+## Run Locally
 
 ```bash
 npm install
 npm run dev
 ```
 
-进入页面后点击“进入训练场”，使用鼠标锁定视角。
+Open the local Vite URL, press `ENTER RANGE`, then click to lock mouse control.
 
-## 操作
+## Controls
 
-- `WASD` 移动
-- `Shift` 冲刺
-- `Space` 跳跃
-- `Ctrl` / `C` 蹲伏
-- 鼠标移动调整视角
-- 鼠标左键射击
-- `R` 换弹
-- `V` 切换第一/第三人称
-- `1` / `2` / `4` / `5` 切换步枪
-- `3` / `Q` 快速切刀
-- `6` 切换第二把刀
+- `WASD`: move
+- `Shift`: sprint
+- `Space`: jump
+- `Ctrl` / `C`: crouch
+- Mouse move: aim
+- Left mouse: fire / slash
+- Right mouse: aim down sights / sniper scope
+- `R`: reload
+- `V`: switch first-person / third-person camera
+- `1`: AK-47 Classic
+- `2`: M4A1 Tactical
+- `4`: Blackout Heavy Sniper
+- `5`: Thunder M4 Prototype
+- `6`: Ember Beast AK
+- `3` / `Q`: cycle knives
 
-## 资产说明
+## Features
 
-武器和刀具均为 Three.js 程序化原创模型，用于公开发布；未包含《穿越火线》或其他商业 FPS 的专有模型文件。
+- Three.js 3D training range with shadows, fog, targets, cover, catwalks, and containers.
+- Third-person and first-person camera modes.
+- Mouse direction fixed to normal FPS behavior.
+- Rifle, M4, sniper, and knife loadout.
+- Right-click sniper scope overlay and zoom.
+- Simple Web Audio firearm, reload, slash, hit, and damage sounds.
+- Hostile Cactoro enemy AI that patrols, chases, attacks, takes damage, and respawns.
+- External CC0 GLB models loaded from `public/models`, with procedural fallback models.
+
+## Asset Notes
+
+The project uses only public, redistributable model assets. It does not include
+proprietary CrossFire, Valorant, Counter-Strike, or other commercial FPS game
+model files.
+
+Model credits and license links are listed in:
+
+`public/models/ASSET_CREDITS.md`

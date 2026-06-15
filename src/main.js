@@ -47,7 +47,7 @@ startButton.addEventListener('click', () => {
 
 cameraToggleButton.addEventListener('click', () => {
   const mode = player.toggleCameraMode();
-  cameraToggleButton.textContent = mode === 'first' ? '第一人称' : '第三人称';
+  cameraToggleButton.textContent = mode === 'first' ? 'FIRST PERSON' : 'THIRD PERSON';
 });
 
 document.addEventListener('pointerlockchange', () => {
@@ -72,7 +72,7 @@ function animate() {
   world.update(delta, elapsed);
   player.update(delta, elapsed);
   hud.update(player.state, world.state);
-  cameraToggleButton.textContent = player.state.cameraMode === 'first' ? '第一人称' : '第三人称';
+  cameraToggleButton.textContent = player.state.cameraMode === 'first' ? 'FIRST PERSON' : 'THIRD PERSON';
 
   renderer.render(scene, camera);
 }

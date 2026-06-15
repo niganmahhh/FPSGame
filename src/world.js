@@ -1,3 +1,5 @@
+import { mountExternalModel } from './modelAssets.js';
+
 export function createWorld({ scene, THREE }) {
   if (!scene || !THREE) {
     throw new Error('createWorld requires scene and THREE.');
@@ -7,6 +9,8 @@ export function createWorld({ scene, THREE }) {
     score: 0,
     hits: 0,
     totalTargets: 0,
+    monsterTotal: 0,
+    monstersAlive: 0,
     clearedTargets: 0,
     progress: 0,
     activeTargets: 0,
@@ -25,10 +29,15 @@ export function createWorld({ scene, THREE }) {
       maxZ: 9,
     },
     playerSpawn: [0, 0, 8],
+    player: {
+      position: null,
+      health: 100,
+    },
   };
 
   const targets = [];
   const effects = [];
+  let pendingPlayerDamage = 0;
 
   const boxGeometry = new THREE.BoxGeometry(1, 1, 1);
   const planeGeometry = new THREE.PlaneGeometry(1, 1);
@@ -96,6 +105,31 @@ export function createWorld({ scene, THREE }) {
     moveSpeed: 0.55,
   });
 
+  addMonster({
+    id: 'cactoro-left',
+    position: new THREE.Vector3(-10.8, 0, -47),
+    patrolRadius: 4.2,
+    speed: 2.2,
+    health: 190,
+    scoreValue: 260,
+  });
+  addMonster({
+    id: 'cactoro-mid',
+    position: new THREE.Vector3(8.8, 0, -42),
+    patrolRadius: 3.4,
+    speed: 2.6,
+    health: 155,
+    scoreValue: 220,
+  });
+  addMonster({
+    id: 'cactoro-fast',
+    position: new THREE.Vector3(0, 0, -33),
+    patrolRadius: 5.4,
+    speed: 3.1,
+    health: 120,
+    scoreValue: 180,
+  });
+
   state.totalTargets = targets.length;
   updateTargetCounts();
 
@@ -120,7 +154,27 @@ export function createWorld({ scene, THREE }) {
     return target;
   }
 
-  function registerHit(targetLike) {
+  function addMonster(options) {
+    const monster = createMonster(THREE, {
+      boxGeometry,
+      materials,
+      ...options,
+    });
+
+    monster.group.traverse((child) => {
+      if (child.isMesh) {
+        child.castShadow = true;
+        child.receiveShadow = true;
+        child.userData.target = monster;
+      }
+    });
+
+    worldRoot.add(monster.group);
+    targets.push(monster);
+    return monster;
+  }
+
+  function registerHit(targetLike, hitInfo = {}) {
     const target = resolveTarget(targetLike);
 
     if (!target || !target.active) {
@@ -129,6 +183,10 @@ export function createWorld({ scene, THREE }) {
         target,
         score: state.score,
       };
+    }
+
+    if (target.kind === 'monster') {
+      return registerMonsterHit(target, hitInfo);
     }
 
     target.active = false;
@@ -155,6 +213,53 @@ export function createWorld({ scene, THREE }) {
       target,
       score: state.score,
       combo: state.combo,
+      eliminated: true,
+    };
+  }
+
+  function registerMonsterHit(monster, hitInfo = {}) {
+    const damage = Math.max(1, hitInfo.damage ?? 35);
+    monster.health = Math.max(0, monster.health - damage);
+    monster.hitFlash = 1;
+    monster.knock = 1;
+
+    state.score += Math.round(18 + damage * 0.28);
+    state.status = 'hostile_hit';
+    state.lastHitId = monster.id;
+    state.lastHitTime = state.elapsed;
+
+    if (monster.health > 0) {
+      updateTargetCounts();
+      return {
+        hit: true,
+        target: monster,
+        score: state.score,
+        combo: state.combo,
+        eliminated: false,
+      };
+    }
+
+    monster.active = false;
+    monster.cooldown = monster.respawnDelay;
+    monster.hitbox.userData.active = false;
+    monster.group.visible = false;
+    monster.health = 0;
+
+    state.hits += 1;
+    state.score += monster.scoreValue;
+    state.combo = state.comboTimer > 0 ? state.combo + 1 : 1;
+    state.comboTimer = 2.2;
+    state.status = 'hostile_down';
+
+    spawnHitEffect(monster);
+    updateTargetCounts();
+
+    return {
+      hit: true,
+      target: monster,
+      score: state.score,
+      combo: state.combo,
+      eliminated: true,
     };
   }
 
@@ -169,7 +274,11 @@ export function createWorld({ scene, THREE }) {
     }
 
     for (const target of targets) {
-      updateTarget(target, delta, elapsed);
+      if (target.kind === 'monster') {
+        updateMonster(target, delta, elapsed);
+      } else {
+        updateTarget(target, delta, elapsed);
+      }
     }
 
     updateEffects(delta);
@@ -285,6 +394,70 @@ export function createWorld({ scene, THREE }) {
     target.plateMaterial.emissive.copy(target.flashColor).multiplyScalar(plateFlash * 0.18);
   }
 
+  function updateMonster(monster, delta, elapsed) {
+    if (!monster.active) {
+      monster.cooldown -= delta;
+
+      if (monster.cooldown <= 0) {
+        monster.active = true;
+        monster.cooldown = 0;
+        monster.health = monster.maxHealth;
+        monster.group.visible = true;
+        monster.group.position.copy(monster.basePosition);
+        monster.hitbox.userData.active = true;
+      }
+
+      return;
+    }
+
+    const playerPosition = state.player.position;
+    const playerVector = playerPosition?.isVector3 ? playerPosition : null;
+    const desired = monster.tempVector;
+
+    if (playerVector) {
+      desired.subVectors(playerVector, monster.group.position);
+      desired.y = 0;
+    }
+
+    const distanceToPlayer = playerVector ? desired.length() : Infinity;
+
+    if (distanceToPlayer < monster.aggroRange && distanceToPlayer > 0.001) {
+      desired.normalize();
+      monster.group.position.addScaledVector(desired, monster.speed * delta);
+      monster.group.lookAt(playerVector.x, monster.group.position.y, playerVector.z);
+
+      if (distanceToPlayer < monster.attackRange && elapsed >= monster.nextAttackAt) {
+        pendingPlayerDamage += monster.attackDamage;
+        monster.nextAttackAt = elapsed + monster.attackInterval;
+        monster.attackFlash = 1;
+        state.status = 'hostile_attack';
+      }
+    } else {
+      const patrolX = monster.basePosition.x + Math.sin(elapsed * monster.patrolSpeed + monster.phase) * monster.patrolRadius;
+      const patrolZ = monster.basePosition.z + Math.cos(elapsed * monster.patrolSpeed + monster.phase) * monster.patrolRadius * 0.45;
+      desired.set(patrolX - monster.group.position.x, 0, patrolZ - monster.group.position.z);
+
+      if (desired.lengthSq() > 0.01) {
+        desired.normalize();
+        monster.group.position.addScaledVector(desired, monster.speed * 0.38 * delta);
+        monster.group.lookAt(monster.group.position.x + desired.x, monster.group.position.y, monster.group.position.z + desired.z);
+      }
+    }
+
+    monster.group.position.y = monster.basePosition.y + Math.abs(Math.sin(elapsed * 4 + monster.phase)) * 0.08;
+    monster.hitFlash = Math.max(0, monster.hitFlash - delta * 4.8);
+    monster.knock = Math.max(0, monster.knock - delta * 3.2);
+    monster.attackFlash = Math.max(0, monster.attackFlash - delta * 5);
+
+    const healthRatio = monster.maxHealth > 0 ? monster.health / monster.maxHealth : 0;
+    monster.healthBar.scale.x = Math.max(0.04, healthRatio);
+    monster.healthBar.position.x = -0.5 + healthRatio * 0.5;
+
+    const flashMix = Math.max(monster.hitFlash, monster.attackFlash * 0.65);
+    monster.bodyMaterial.color.copy(monster.bodyBaseColor).lerp(monster.flashColor, flashMix);
+    monster.bodyMaterial.emissive.copy(monster.flashColor).multiplyScalar(flashMix * 0.42);
+  }
+
   function animateRangeDetails(elapsed) {
     const pulse = (Math.sin(elapsed * 4.5) + 1) * 0.5;
 
@@ -299,13 +472,25 @@ export function createWorld({ scene, THREE }) {
 
   function updateTargetCounts() {
     let activeTargets = 0;
+    let monsterTotal = 0;
+    let monstersAlive = 0;
 
     for (const target of targets) {
       if (target.active) {
         activeTargets += 1;
       }
+
+      if (target.kind === 'monster') {
+        monsterTotal += 1;
+        if (target.active) {
+          monstersAlive += 1;
+        }
+      }
     }
 
+    state.totalTargets = targets.length;
+    state.monsterTotal = monsterTotal;
+    state.monstersAlive = monstersAlive;
     state.activeTargets = activeTargets;
     state.inactiveTargets = targets.length - activeTargets;
     state.clearedTargets = Math.min(state.hits, state.totalTargets);
@@ -321,6 +506,11 @@ export function createWorld({ scene, THREE }) {
     targets,
     update,
     registerHit,
+    consumePlayerDamage() {
+      const amount = pendingPlayerDamage;
+      pendingPlayerDamage = 0;
+      return amount;
+    },
   };
 }
 
@@ -424,6 +614,23 @@ function createMaterials(THREE) {
       emissiveIntensity: 0.75,
       roughness: 0.35,
       metalness: 0.08,
+    }),
+    monsterBody: new THREE.MeshStandardMaterial({
+      color: 0x6ca35f,
+      emissive: 0x081908,
+      emissiveIntensity: 0.12,
+      roughness: 0.72,
+      metalness: 0.03,
+    }),
+    monsterHat: new THREE.MeshStandardMaterial({
+      color: 0x7f5834,
+      roughness: 0.78,
+      metalness: 0.04,
+    }),
+    monsterHealth: new THREE.MeshBasicMaterial({
+      color: 0x58f2a0,
+      transparent: true,
+      opacity: 0.95,
     }),
   };
 }
@@ -749,6 +956,141 @@ function addBarrelStack(root, THREE, context, position) {
 
   root.add(group);
   return group;
+}
+
+function createMonster(THREE, options) {
+  const {
+    boxGeometry,
+    materials,
+    id,
+    position,
+    speed = 2.4,
+    health = 150,
+    scoreValue = 200,
+    respawnDelay = 4.5,
+    patrolRadius = 4,
+  } = options;
+
+  const group = new THREE.Group();
+  group.name = `hostile-${id}`;
+  group.position.copy(position);
+
+  const fallback = new THREE.Group();
+  fallback.name = `${id}-fallback-body`;
+  group.add(fallback);
+
+  const bodyMaterial = materials.monsterBody.clone();
+  const hatMaterial = materials.monsterHat.clone();
+  const bodyGeometry =
+    typeof THREE.CapsuleGeometry === 'function'
+      ? new THREE.CapsuleGeometry(0.44, 0.95, 6, 12)
+      : new THREE.CylinderGeometry(0.42, 0.5, 1.45, 12);
+  const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+  body.name = `${id}-body`;
+  body.position.set(0, 0.9, 0);
+  body.castShadow = true;
+  fallback.add(body);
+
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.34, 16, 12), bodyMaterial);
+  head.name = `${id}-head`;
+  head.position.set(0, 1.72, -0.02);
+  head.castShadow = true;
+  fallback.add(head);
+
+  const hat = new THREE.Mesh(new THREE.CylinderGeometry(0.46, 0.64, 0.16, 18), hatMaterial);
+  hat.name = `${id}-hat`;
+  hat.position.set(0, 2.04, -0.02);
+  hat.castShadow = true;
+  fallback.add(hat);
+
+  for (const x of [-0.54, 0.54]) {
+    const arm = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.72, 0.24), bodyMaterial);
+    arm.name = `${id}-arm`;
+    arm.position.set(x, 1.06, 0.02);
+    arm.rotation.z = -x * 0.42;
+    arm.castShadow = true;
+    fallback.add(arm);
+  }
+
+  const modelSocket = new THREE.Group();
+  modelSocket.name = `${id}-external-model`;
+  group.add(modelSocket);
+  mountExternalModel(
+    THREE,
+    modelSocket,
+    {
+      file: 'cactoro.glb',
+      maxSize: 1.86,
+      alignBottom: true,
+      rotation: [0, Math.PI, 0],
+    },
+    fallback,
+  );
+
+  const hitbox = new THREE.Mesh(boxGeometry, materials.hitbox.clone());
+  hitbox.name = `hitbox-${id}`;
+  hitbox.position.set(0, 1.1, 0);
+  hitbox.scale.set(1.18, 2.25, 1.05);
+  hitbox.castShadow = false;
+  hitbox.receiveShadow = false;
+  hitbox.userData.active = true;
+  group.add(hitbox);
+
+  const healthBack = new THREE.Mesh(boxGeometry, new THREE.MeshBasicMaterial({
+    color: 0x15191b,
+    transparent: true,
+    opacity: 0.86,
+  }));
+  healthBack.name = `${id}-health-back`;
+  healthBack.position.set(0, 2.35, 0);
+  healthBack.scale.set(1.18, 0.07, 0.04);
+  group.add(healthBack);
+
+  const healthBar = new THREE.Mesh(boxGeometry, materials.monsterHealth.clone());
+  healthBar.name = `${id}-health-bar`;
+  healthBar.position.set(0, 2.36, -0.035);
+  healthBar.scale.set(1, 0.06, 0.04);
+  group.add(healthBar);
+
+  const monster = {
+    id,
+    kind: 'monster',
+    group,
+    mesh: hitbox,
+    hitbox,
+    active: true,
+    cooldown: 0,
+    respawnDelay,
+    scoreValue,
+    maxHealth: health,
+    health,
+    speed,
+    patrolRadius,
+    patrolSpeed: 0.58 + Math.random() * 0.25,
+    aggroRange: 24,
+    attackRange: 1.65,
+    attackDamage: 9,
+    attackInterval: 1.05,
+    nextAttackAt: 0,
+    hitFlash: 0,
+    knock: 0,
+    attackFlash: 0,
+    phase: Math.random() * Math.PI * 2,
+    basePosition: position.clone(),
+    tempVector: new THREE.Vector3(),
+    bodyMaterial,
+    bodyBaseColor: bodyMaterial.color.clone(),
+    flashColor: new THREE.Color(0xffd35f),
+    healthBar,
+  };
+
+  group.traverse((child) => {
+    if (child.isMesh) {
+      child.userData.target = monster;
+    }
+  });
+
+  return monster;
 }
 
 function createTarget(THREE, options) {

@@ -74,6 +74,8 @@ function readHudState(playerState = {}, worldState = {}) {
   const magSize = numberFrom(pick(playerState, ['magazineSize', 'magSize', 'weapon.magazineSize', 'weapon.magSize'], 30), 30);
   const reserve = numberFrom(pick(playerState, ['reserveAmmo', 'ammoReserve', 'weapon.reserveAmmo'], 90), 90);
   const isMelee = Boolean(pick(playerState, ['isMelee', 'weapon.isMelee'], false));
+  const aiming = Boolean(pick(playerState, ['aiming', 'weapon.aiming'], false));
+  const scoped = Boolean(pick(playerState, ['scoped', 'weapon.scoped'], false));
   const cameraMode = pick(playerState, ['cameraMode', 'viewMode'], 'third');
   const activeEquipmentIndex = numberFrom(pick(playerState, ['activeEquipmentIndex', 'weapon.index'], 0), 0);
   const equipmentSlots = Array.isArray(playerState.equipmentSlots) ? playerState.equipmentSlots : [];
@@ -89,6 +91,8 @@ function readHudState(playerState = {}, worldState = {}) {
   );
   const totalTargets = numberFrom(rawTotal, numberFrom(pick(playerState, ['totalTargets'], 0), 0));
   const clearedTargets = numberFrom(rawCleared, numberFrom(pick(playerState, ['targetsHit', 'kills'], 0), 0));
+  const monsterTotal = numberFrom(pick(worldState, ['monsterTotal', 'hostileTotal'], 0), 0);
+  const monstersAlive = numberFrom(pick(worldState, ['monstersAlive', 'hostilesAlive'], 0), 0);
   const progressValue = pick(worldState, ['progress', 'targetProgress', 'objective.progress'], undefined);
   const progress = progressValue !== undefined
     ? clamp(numberFrom(progressValue, 0) <= 1 ? numberFrom(progressValue, 0) * 100 : numberFrom(progressValue, 0), 0, 100)
@@ -108,6 +112,8 @@ function readHudState(playerState = {}, worldState = {}) {
     magSize,
     reserve,
     isMelee,
+    aiming,
+    scoped,
     cameraMode,
     activeEquipmentIndex,
     equipmentSlots,
@@ -117,6 +123,8 @@ function readHudState(playerState = {}, worldState = {}) {
     timeRemaining,
     totalTargets,
     clearedTargets,
+    monsterTotal,
+    monstersAlive,
     progress,
     pointerLocked,
     paused,
@@ -189,6 +197,15 @@ export function createHud(root) {
   });
   crosshair.append(make('span', 'hud-crosshair__dot'));
 
+  const scopeOverlay = make('div', 'hud-scope');
+  scopeOverlay.append(
+    make('span', 'hud-scope__ring'),
+    make('span', 'hud-scope__line hud-scope__line--vertical'),
+    make('span', 'hud-scope__line hud-scope__line--horizontal'),
+    make('span', 'hud-scope__tick hud-scope__tick--left'),
+    make('span', 'hud-scope__tick hud-scope__tick--right'),
+  );
+
   const message = make('div', 'hud-message', DEFAULT_MESSAGE);
   const hitMarker = make('div', 'hud-hit-marker');
   hitMarker.append(make('span', 'hud-hit-marker__text', 'HIT'));
@@ -212,7 +229,7 @@ export function createHud(root) {
   ammoPanel.append(weaponName, ammoWrap, ammoTrack);
 
   const equipmentPanel = make('section', 'hud-equipment');
-  const cameraModeValue = make('button', 'hud-camera-mode', '第三人称 V');
+  const cameraModeValue = make('button', 'hud-camera-mode', 'Third V');
   cameraModeValue.type = 'button';
   cameraModeValue.tabIndex = -1;
   const equipmentList = make('div', 'hud-equipment__list');
@@ -230,6 +247,7 @@ export function createHud(root) {
     firstScreen,
     topBar,
     crosshair,
+    scopeOverlay,
     message,
     hitMarker,
     eventFeed,
@@ -256,9 +274,13 @@ export function createHud(root) {
     root.dataset.locked = String(locked);
     root.dataset.paused = String(state.paused || !state.isAlive);
     root.dataset.started = String(hasStarted);
+    root.dataset.aiming = String(state.aiming);
+    root.dataset.scoped = String(state.scoped);
 
     objectiveTitle.textContent = state.objective;
-    objectiveMeta.textContent = `${state.clearedTargets} / ${state.totalTargets || 0} targets`;
+    objectiveMeta.textContent = state.monsterTotal > 0
+      ? `${state.clearedTargets} / ${state.totalTargets || 0} targets | ${state.monstersAlive} / ${state.monsterTotal} hostiles`
+      : `${state.clearedTargets} / ${state.totalTargets || 0} targets`;
     objectiveFill.style.width = `${state.progress}%`;
     scoreValue.textContent = String(Math.round(state.score));
     waveValue.textContent = String(Math.max(1, Math.round(state.wave)));
@@ -269,10 +291,10 @@ export function createHud(root) {
     armorMeter.value.textContent = `${Math.round(state.armor)}`;
     armorMeter.fill.style.width = `${percent(state.armor, state.maxArmor)}%`;
     weaponName.textContent = state.weaponName;
-    cameraModeValue.textContent = state.cameraMode === 'first' ? '第一人称 V' : '第三人称 V';
+    cameraModeValue.textContent = state.cameraMode === 'first' ? 'First V' : 'Third V';
 
     equipmentList.textContent = '';
-    state.equipmentSlots.slice(0, 6).forEach((slot, index) => {
+    state.equipmentSlots.slice(0, 7).forEach((slot, index) => {
       const item = make('span', 'hud-equipment__item', `${slot.hotkey || index + 1} ${slot.shortName || slot.name}`);
       item.dataset.active = String(index === state.activeEquipmentIndex);
       item.dataset.type = slot.type || 'rifle';

@@ -367,6 +367,10 @@ select {
   transform: translate(-50%, -50%) scale(1.08);
 }
 
+.hud-root[data-scoped="true"] .hud-crosshair {
+  opacity: 0;
+}
+
 .hud-crosshair__line,
 .hud-crosshair__dot {
   position: absolute;
@@ -414,6 +418,76 @@ select {
 
 .hud-crosshair__line--right {
   right: 0.55rem;
+}
+
+.hud-scope {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 120ms ease, visibility 120ms ease;
+}
+
+.hud-root[data-scoped="true"] .hud-scope {
+  opacity: 1;
+  visibility: visible;
+}
+
+.hud-scope::before {
+  position: absolute;
+  inset: 0;
+  content: "";
+  background:
+    radial-gradient(circle at 50% 50%, transparent 0 33vmin, rgba(0, 0, 0, 0.94) 33.3vmin),
+    radial-gradient(circle at 50% 50%, rgba(112, 199, 255, 0.08), transparent 28vmin);
+}
+
+.hud-scope__ring,
+.hud-scope__line,
+.hud-scope__tick {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  display: block;
+  border-color: rgba(232, 242, 238, 0.78);
+  box-shadow: 0 0 0.9rem rgba(112, 199, 255, 0.25);
+}
+
+.hud-scope__ring {
+  width: min(66vmin, 42rem);
+  height: min(66vmin, 42rem);
+  border: 2px solid rgba(232, 242, 238, 0.72);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.hud-scope__line--vertical {
+  width: 1px;
+  height: min(64vmin, 40rem);
+  background: rgba(232, 242, 238, 0.74);
+  transform: translate(-50%, -50%);
+}
+
+.hud-scope__line--horizontal {
+  width: min(64vmin, 40rem);
+  height: 1px;
+  background: rgba(232, 242, 238, 0.74);
+  transform: translate(-50%, -50%);
+}
+
+.hud-scope__tick {
+  width: 4.2rem;
+  height: 1px;
+  background: rgba(255, 189, 89, 0.72);
+}
+
+.hud-scope__tick--left {
+  transform: translate(calc(-50% - 9rem), -50%);
+}
+
+.hud-scope__tick--right {
+  transform: translate(calc(-50% + 9rem), -50%);
 }
 
 .hud-message {

@@ -1,15 +1,24 @@
+import { mountExternalModel } from './modelAssets.js';
+
 export const LOADOUT = [
   {
     id: 'ak-classic',
     type: 'rifle',
     name: 'AK-47 Classic',
     shortName: 'AK',
+    hotkey: '1',
     magazineSize: 30,
     reserveAmmo: 90,
     fireInterval: 0.115,
+    reloadTime: 1.35,
     damage: 36,
     range: 88,
     recoil: 0.032,
+    asset: {
+      file: 'assault-rifle.glb',
+      maxSize: 1.74,
+      rotation: [0, Math.PI, 0],
+    },
     palette: {
       body: 0x3a2d23,
       metal: 0x20272b,
@@ -22,12 +31,19 @@ export const LOADOUT = [
     type: 'rifle',
     name: 'M4A1 Tactical',
     shortName: 'M4',
+    hotkey: '2',
     magazineSize: 30,
     reserveAmmo: 120,
     fireInterval: 0.095,
+    reloadTime: 1.2,
     damage: 31,
     range: 94,
     recoil: 0.022,
+    asset: {
+      file: 'assault-rifle-alt.glb',
+      maxSize: 1.68,
+      rotation: [0, Math.PI, 0],
+    },
     palette: {
       body: 0x263540,
       metal: 0x11191f,
@@ -36,16 +52,50 @@ export const LOADOUT = [
     },
   },
   {
+    id: 'blackout-sniper',
+    type: 'sniper',
+    name: 'Blackout Heavy Sniper',
+    shortName: 'SNIPER',
+    hotkey: '4',
+    magazineSize: 5,
+    reserveAmmo: 25,
+    fireInterval: 1.05,
+    reloadTime: 1.75,
+    damage: 135,
+    range: 145,
+    recoil: 0.075,
+    adsFov: 38,
+    scopedFov: 17,
+    asset: {
+      file: 'sniper-rifle.glb',
+      maxSize: 2.24,
+      rotation: [0, Math.PI, 0],
+    },
+    palette: {
+      body: 0x141a20,
+      metal: 0x0d1013,
+      accent: 0xd2b166,
+      glow: 0xffcf66,
+    },
+  },
+  {
     id: 'storm-m4',
     type: 'rifle',
     name: 'Thunder M4 Prototype',
-    shortName: '雷电 M4',
+    shortName: 'STORM',
+    hotkey: '5',
     magazineSize: 30,
     reserveAmmo: 120,
     fireInterval: 0.088,
+    reloadTime: 1.15,
     damage: 32,
     range: 96,
     recoil: 0.018,
+    asset: {
+      file: 'assault-rifle-alt.glb',
+      maxSize: 1.72,
+      rotation: [0, Math.PI, 0],
+    },
     palette: {
       body: 0x182237,
       metal: 0x0a111a,
@@ -57,13 +107,20 @@ export const LOADOUT = [
     id: 'ember-ak',
     type: 'rifle',
     name: 'Ember Beast AK',
-    shortName: '火焰 AK',
+    shortName: 'EMBER',
+    hotkey: '6',
     magazineSize: 35,
     reserveAmmo: 105,
     fireInterval: 0.108,
+    reloadTime: 1.35,
     damage: 34,
     range: 86,
     recoil: 0.03,
+    asset: {
+      file: 'assault-rifle.glb',
+      maxSize: 1.76,
+      rotation: [0, Math.PI, 0],
+    },
     palette: {
       body: 0x3b1510,
       metal: 0x1a1614,
@@ -75,11 +132,17 @@ export const LOADOUT = [
     id: 'dragon-blade',
     type: 'knife',
     name: 'Dragon Blade',
-    shortName: '龙刃',
+    shortName: 'DRAGON',
+    hotkey: '3',
     fireInterval: 0.52,
     damage: 120,
     range: 4.2,
     recoil: 0.018,
+    asset: {
+      file: 'butcher-knife.glb',
+      maxSize: 1.45,
+      rotation: [-0.15, 0, -0.62],
+    },
     palette: {
       body: 0x312018,
       metal: 0xd7b66a,
@@ -91,7 +154,8 @@ export const LOADOUT = [
     id: 'butterfly-knife',
     type: 'knife',
     name: 'Butterfly Knife',
-    shortName: '蝶刀',
+    shortName: 'BUTTER',
+    hotkey: 'Q',
     fireInterval: 0.42,
     damage: 95,
     range: 3.7,
@@ -104,6 +168,10 @@ export const LOADOUT = [
     },
   },
 ];
+
+export function isFirearm(item) {
+  return item?.type !== 'knife';
+}
 
 function makeMaterial(THREE, color, options = {}) {
   return new THREE.MeshStandardMaterial({
@@ -159,17 +227,25 @@ function createRifleModel(THREE, item) {
     roughness: 0.38,
     metalness: 0.36,
     emissive: palette.glow,
-    emissiveIntensity: item.id.includes('storm') || item.id.includes('ember') ? 0.35 : 0.08,
+    emissiveIntensity: item.id.includes('storm') || item.id.includes('ember') || item.type === 'sniper' ? 0.35 : 0.08,
   });
 
-  addBox(THREE, group, body, [0, 0, -0.15], [0.34, 0.22, 1.05], 'receiver');
+  const barrelLength = item.type === 'sniper' ? 1.15 : 0.78;
+  const receiverLength = item.type === 'sniper' ? 1.22 : 1.05;
+  addBox(THREE, group, body, [0, 0, -0.15], [0.34, 0.22, receiverLength], 'receiver');
   addBox(THREE, group, metal, [0, 0.01, -0.84], [0.16, 0.14, 0.72], 'barrel-shroud');
-  addCylinder(THREE, group, metal, [0, 0.02, -1.26], 0.045, 0.78, 'barrel');
+  addCylinder(THREE, group, metal, [0, 0.02, -1.26], 0.045, barrelLength, 'barrel');
   addBox(THREE, group, body, [0, -0.22, 0.18], [0.18, 0.48, 0.26], 'magazine');
   addBox(THREE, group, metal, [0.02, -0.17, 0.58], [0.16, 0.16, 0.35], 'grip');
   addBox(THREE, group, body, [0, 0.03, 0.78], [0.26, 0.19, 0.58], 'stock');
   addBox(THREE, group, accent, [0, 0.16, -0.36], [0.42, 0.055, 0.36], 'top-rail');
   addBox(THREE, group, accent, [0, -0.12, -0.68], [0.22, 0.055, 0.42], 'foregrip-light');
+
+  if (item.type === 'sniper') {
+    addCylinder(THREE, group, metal, [0, 0.26, -0.24], 0.12, 0.54, 'scope-body');
+    addCylinder(THREE, group, accent, [0, 0.26, -0.55], 0.08, 0.26, 'scope-front');
+    addBox(THREE, group, body, [0, 0.02, 1.04], [0.28, 0.18, 0.78], 'sniper-stock');
+  }
 
   if (item.id.includes('storm')) {
     addCylinder(THREE, group, accent, [-0.18, 0.04, -0.45], 0.025, 1.3, 'storm-coil-left');
@@ -215,17 +291,23 @@ function createKnifeModel(THREE, item) {
 }
 
 export function createEquipmentModel(THREE, item, mode = 'third') {
-  const group = item.type === 'knife' ? createKnifeModel(THREE, item) : createRifleModel(THREE, item);
+  const group = new THREE.Group();
+  const fallback = item.type === 'knife' ? createKnifeModel(THREE, item) : createRifleModel(THREE, item);
   group.name = `${item.id}-${mode}-model`;
+  group.add(fallback);
+
+  if (item.asset) {
+    mountExternalModel(THREE, group, item.asset, fallback);
+  }
 
   if (mode === 'first') {
     group.position.set(item.type === 'knife' ? 0.48 : 0.42, item.type === 'knife' ? -0.34 : -0.42, -0.92);
     group.rotation.set(item.type === 'knife' ? -0.35 : -0.08, item.type === 'knife' ? -0.28 : -0.16, item.type === 'knife' ? -0.4 : 0.02);
-    group.scale.setScalar(item.type === 'knife' ? 0.72 : 0.82);
+    group.scale.setScalar(item.type === 'knife' ? 0.72 : item.type === 'sniper' ? 0.72 : 0.82);
   } else {
     group.position.set(0.32, 1.23, -0.42);
     group.rotation.set(0.05, -0.06, 0);
-    group.scale.setScalar(item.type === 'knife' ? 0.55 : 0.62);
+    group.scale.setScalar(item.type === 'knife' ? 0.55 : item.type === 'sniper' ? 0.55 : 0.62);
   }
 
   return group;
