@@ -1019,6 +1019,8 @@ function createMonster(THREE, options) {
     THREE,
     modelSocket,
     {
+      overrideGroup: 'monsters',
+      overrideKey: 'cactoro',
       file: 'cactoro.glb',
       maxSize: 1.86,
       alignBottom: true,

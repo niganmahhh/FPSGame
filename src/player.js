@@ -296,6 +296,8 @@ function createAvatar(THREE) {
     THREE,
     avatarModel,
     {
+      overrideGroup: 'avatar',
+      overrideKey: 'player',
       file: 'animated-woman.glb',
       maxSize: 1.82,
       alignBottom: true,

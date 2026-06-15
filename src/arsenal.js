@@ -297,7 +297,11 @@ export function createEquipmentModel(THREE, item, mode = 'third') {
   group.add(fallback);
 
   if (item.asset) {
-    mountExternalModel(THREE, group, item.asset, fallback);
+    mountExternalModel(THREE, group, {
+      overrideGroup: 'weapons',
+      overrideKey: item.id,
+      ...item.asset,
+    }, fallback);
   }
 
   if (mode === 'first') {

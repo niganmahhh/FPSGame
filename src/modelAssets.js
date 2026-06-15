@@ -3,8 +3,9 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 const loader = new GLTFLoader();
 const cache = new Map();
 const baseUrl = (import.meta.env.BASE_URL || '/').replace(/\/?$/, '/');
+let privateModsPromise = null;
 
-export function modelUrl(file) {
+export function modelUrl(file, folder = 'models') {
   if (!file) {
     return '';
   }
@@ -14,11 +15,19 @@ export function modelUrl(file) {
   }
 
   const cleanFile = file.replace(/^\/+/, '');
-  return `${baseUrl}models/${cleanFile.replace(/^models\//, '')}`;
+  if (cleanFile.startsWith('models/') || cleanFile.startsWith('private-mods/')) {
+    return `${baseUrl}${cleanFile}`;
+  }
+
+  return `${baseUrl}${folder.replace(/^\/+|\/+$/g, '')}/${cleanFile}`;
 }
 
-export function loadModel(file) {
-  const url = modelUrl(file);
+export function privateModUrl(file) {
+  return modelUrl(file, 'private-mods');
+}
+
+export function loadModel(file, options = {}) {
+  const url = modelUrl(file, options.folder);
 
   if (!url) {
     return Promise.reject(new Error('Missing model file.'));
@@ -39,6 +48,56 @@ export function loadModel(file) {
   }
 
   return cache.get(url).then((scene) => scene.clone(true));
+}
+
+export function loadPrivateModsManifest() {
+  if (!privateModsPromise) {
+    privateModsPromise = fetch(privateModUrl('mods.json'), { cache: 'no-store' })
+      .then((response) => (response.ok ? response.json() : null))
+      .catch(() => null);
+  }
+
+  return privateModsPromise;
+}
+
+function normalizePrivateOverride(override) {
+  if (!override) {
+    return null;
+  }
+
+  if (typeof override === 'string') {
+    return { file: override, folder: 'private-mods' };
+  }
+
+  if (typeof override === 'object' && override.file) {
+    return {
+      ...override,
+      folder: override.folder ?? 'private-mods',
+    };
+  }
+
+  return null;
+}
+
+export async function resolveAsset(asset) {
+  if (!asset?.overrideKey) {
+    return asset;
+  }
+
+  const manifest = await loadPrivateModsManifest();
+  const groupOverride = manifest?.[asset.overrideGroup]?.[asset.overrideKey];
+  const directOverride = manifest?.assets?.[asset.overrideKey] ?? manifest?.[asset.overrideKey];
+  const override = normalizePrivateOverride(groupOverride ?? directOverride);
+
+  if (!override) {
+    return asset;
+  }
+
+  return {
+    ...asset,
+    ...override,
+    privateOverride: true,
+  };
 }
 
 export function prepareModel(THREE, model, options = {}) {
@@ -97,14 +156,16 @@ export function mountExternalModel(THREE, parent, asset, fallback = null, callba
   holder.visible = false;
   parent.add(holder);
 
-  loadModel(asset.file)
-    .then((model) => {
-      prepareModel(THREE, model, asset);
+  resolveAsset(asset)
+    .then((resolvedAsset) => loadModel(resolvedAsset.file, resolvedAsset).then((model) => ({ model, resolvedAsset })))
+    .then(({ model, resolvedAsset }) => {
+      prepareModel(THREE, model, resolvedAsset);
       holder.add(model);
-      holder.position.set(...(asset.position ?? [0, 0, 0]));
-      holder.rotation.set(...(asset.rotation ?? [0, 0, 0]));
-      holder.scale.setScalar(asset.scale ?? 1);
+      holder.position.set(...(resolvedAsset.position ?? [0, 0, 0]));
+      holder.rotation.set(...(resolvedAsset.rotation ?? [0, 0, 0]));
+      holder.scale.setScalar(resolvedAsset.scale ?? 1);
       holder.visible = true;
+      holder.userData.asset = resolvedAsset;
 
       if (fallback) {
         fallback.visible = false;

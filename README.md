@@ -45,6 +45,7 @@ Open the local Vite URL, press `ENTER RANGE`, then click to lock mouse control.
 - Simple Web Audio firearm, reload, slash, hit, and damage sounds.
 - Hostile Cactoro enemy AI that patrols, chases, attacks, takes damage, and respawns.
 - External CC0 GLB models loaded from `public/models`, with procedural fallback models.
+- Optional private local mod overrides from ignored `public/private-mods/mods.json`.
 
 ## Asset Notes
 
@@ -55,3 +56,7 @@ model files.
 Model credits and license links are listed in:
 
 `public/models/ASSET_CREDITS.md`
+
+Private local-only mod loading is documented in:
+
+`docs/PRIVATE_MODS.md`
