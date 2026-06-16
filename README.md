@@ -28,6 +28,8 @@ Open the local Vite URL, press `ENTER RANGE`, then click to lock mouse control.
 - Right mouse: aim down sights / sniper scope
 - `R`: reload
 - `V`: switch first-person / third-person camera
+- Mouse wheel: cycle full loadout while in control
+- HUD loadout buttons: select weapons before entering or while mouse is released
 - `1`: AK-47 Classic
 - `2`: M4A1 Tactical
 - `4`: Blackout Heavy Sniper

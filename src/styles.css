@@ -209,6 +209,16 @@ select {
   margin: 1.5rem auto 0;
 }
 
+.hud-first-screen__armory {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.38rem;
+  width: min(38rem, 100%);
+  margin: 1rem auto 0;
+  pointer-events: auto;
+}
+
 .hud-stat {
   min-width: 0;
   padding: 0.85rem;
@@ -606,6 +616,7 @@ select {
   gap: 0.55rem;
   width: min(24rem, calc(100vw - 2.5rem));
   padding: 0.72rem;
+  pointer-events: auto;
 }
 
 .hud-camera-mode {
@@ -636,12 +647,20 @@ select {
   border-radius: 4px;
   background: rgba(0, 0, 0, 0.34);
   color: #a9bbb5;
+  cursor: pointer;
   font-size: 0.68rem;
   font-weight: 900;
   line-height: 1.1;
   text-overflow: ellipsis;
   text-transform: uppercase;
   white-space: nowrap;
+}
+
+.hud-equipment__item:hover,
+.hud-equipment__item:focus-visible {
+  border-color: rgba(112, 199, 255, 0.58);
+  color: #d9f3ff;
+  outline: 0;
 }
 
 .hud-equipment__item[data-active="true"] {
@@ -763,6 +782,11 @@ select {
 
   .hud-first-screen__stats {
     grid-template-columns: 1fr;
+  }
+
+  .hud-first-screen__armory {
+    max-height: 5.5rem;
+    overflow: hidden;
   }
 
   .hud-topbar,

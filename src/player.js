@@ -415,6 +415,7 @@ export function createPlayerController({ camera, canvas, hud, raycaster, world, 
   let reloadEndsAt = 0;
   let recoilYaw = 0;
   let currentElapsed = 0;
+  let lastWheelSwitchAt = 0;
 
   function activeEquipment() {
     return loadout[activeEquipmentIndex];
@@ -519,6 +520,14 @@ export function createPlayerController({ camera, canvas, hud, raycaster, world, 
 
     const currentKnife = knifeIndexes.indexOf(activeEquipmentIndex);
     switchEquipment(knifeIndexes[(currentKnife + 1) % knifeIndexes.length]);
+  }
+
+  function switchEquipmentRelative(direction) {
+    if (!direction) {
+      return;
+    }
+
+    switchEquipment(activeEquipmentIndex + (direction > 0 ? 1 : -1));
   }
 
   function toggleCameraMode() {
@@ -889,6 +898,30 @@ export function createPlayerController({ camera, canvas, hud, raycaster, world, 
     }
   }
 
+  function handleWheel(event) {
+    if (document.pointerLockElement !== canvas || !state.alive) {
+      return;
+    }
+
+    const now = performance.now();
+    if (now - lastWheelSwitchAt < 120 || Math.abs(event.deltaY) < 1) {
+      return;
+    }
+
+    event.preventDefault();
+    lastWheelSwitchAt = now;
+    switchEquipmentRelative(event.deltaY > 0 ? 1 : -1);
+  }
+
+  function handleEquipmentSelect(event) {
+    const index = Number(event.detail?.index);
+    if (!Number.isInteger(index)) {
+      return;
+    }
+
+    switchEquipment(index);
+  }
+
   function handleKeyUp(event) {
     keys.delete(event.code);
   }
@@ -1104,7 +1137,9 @@ export function createPlayerController({ camera, canvas, hud, raycaster, world, 
   window.addEventListener('keydown', handleKeyDown);
   window.addEventListener('keyup', handleKeyUp);
   window.addEventListener('blur', clearInput);
+  document.addEventListener('fpsgame:equip', handleEquipmentSelect);
   canvas.addEventListener('mousedown', handleMouseDown);
+  canvas.addEventListener('wheel', handleWheel, { passive: false });
   canvas.addEventListener('contextmenu', (event) => event.preventDefault());
 
   return {

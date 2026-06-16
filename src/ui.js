@@ -150,6 +150,7 @@ export function createHud(root) {
   const firstTitle = make('h1', 'hud-title', 'Dynamic Entry Range');
   const firstCopy = make('p', 'hud-copy', 'Lock mouse control, clear all marked targets, and keep your vitals above zero.');
   const firstStats = make('div', 'hud-first-screen__stats');
+  const firstStatValues = {};
 
   [
     ['MODE', 'TRAINING'],
@@ -157,11 +158,15 @@ export function createHud(root) {
     ['OBJECTIVE', 'CLEAR LANE'],
   ].forEach(([label, value]) => {
     const stat = make('div', 'hud-stat');
-    stat.append(make('span', 'hud-stat__label', label), make('strong', 'hud-stat__value', value));
+    const statValue = make('strong', 'hud-stat__value', value);
+    firstStatValues[label] = statValue;
+    stat.append(make('span', 'hud-stat__label', label), statValue);
     firstStats.append(stat);
   });
 
-  firstContent.append(firstKicker, firstTitle, firstCopy, firstStats);
+  const firstArmory = make('div', 'hud-first-screen__armory');
+
+  firstContent.append(firstKicker, firstTitle, firstCopy, firstStats, firstArmory);
   firstScreen.append(firstContent);
 
   const topBar = make('div', 'hud-topbar');
@@ -263,6 +268,35 @@ export function createHud(root) {
   let messageTimer = 0;
   let shotTimer = 0;
   let lastState = readHudState();
+  let equipmentSignature = '';
+
+  function renderEquipmentList(container, state) {
+    container.textContent = '';
+    state.equipmentSlots.forEach((slot, index) => {
+      const item = make('button', 'hud-equipment__item', `${slot.hotkey || index + 1} ${slot.shortName || slot.name}`);
+      item.type = 'button';
+      item.tabIndex = -1;
+      item.title = slot.name || slot.shortName || 'Equipment';
+      item.dataset.equipmentIndex = String(index);
+      item.dataset.active = String(index === state.activeEquipmentIndex);
+      item.dataset.type = slot.type || 'rifle';
+      container.append(item);
+    });
+  }
+
+  function getEquipmentSignature(state) {
+    return [
+      state.activeEquipmentIndex,
+      ...state.equipmentSlots.map((slot, index) => [
+        index,
+        slot.id,
+        slot.name,
+        slot.shortName,
+        slot.type,
+        slot.hotkey,
+      ].join(':')),
+    ].join('|');
+  }
 
   function render(state) {
     lastState = state;
@@ -292,14 +326,14 @@ export function createHud(root) {
     armorMeter.fill.style.width = `${percent(state.armor, state.maxArmor)}%`;
     weaponName.textContent = state.weaponName;
     cameraModeValue.textContent = state.cameraMode === 'first' ? 'First V' : 'Third V';
+    firstStatValues.LOADOUT.textContent = state.weaponName;
 
-    equipmentList.textContent = '';
-    state.equipmentSlots.forEach((slot, index) => {
-      const item = make('span', 'hud-equipment__item', `${slot.hotkey || index + 1} ${slot.shortName || slot.name}`);
-      item.dataset.active = String(index === state.activeEquipmentIndex);
-      item.dataset.type = slot.type || 'rifle';
-      equipmentList.append(item);
-    });
+    const nextEquipmentSignature = getEquipmentSignature(state);
+    if (nextEquipmentSignature !== equipmentSignature) {
+      equipmentSignature = nextEquipmentSignature;
+      renderEquipmentList(equipmentList, state);
+      renderEquipmentList(firstArmory, state);
+    }
 
     if (state.isMelee) {
       ammoValue.textContent = 'MELEE';
@@ -398,7 +432,26 @@ export function createHud(root) {
     render({ ...lastState, pointerLocked: Boolean(document.pointerLockElement) });
   }
 
+  function handleEquipmentSelect(event) {
+    const item = event.target.closest('[data-equipment-index]');
+    if (!item) {
+      return;
+    }
+
+    const index = Number(item.dataset.equipmentIndex);
+    if (!Number.isInteger(index)) {
+      return;
+    }
+
+    event.preventDefault();
+    document.dispatchEvent(new CustomEvent('fpsgame:equip', {
+      detail: { index },
+    }));
+  }
+
   document.addEventListener('pointerlockchange', handlePointerLockChange);
+  firstArmory.addEventListener('click', handleEquipmentSelect);
+  equipmentList.addEventListener('click', handleEquipmentSelect);
   render(lastState);
 
   return {
@@ -434,6 +487,8 @@ export function createHud(root) {
     },
     destroy() {
       document.removeEventListener('pointerlockchange', handlePointerLockChange);
+      firstArmory.removeEventListener('click', handleEquipmentSelect);
+      equipmentList.removeEventListener('click', handleEquipmentSelect);
       window.clearTimeout(hitTimer);
       window.clearTimeout(messageTimer);
       window.clearTimeout(shotTimer);
