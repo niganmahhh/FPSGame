@@ -15,9 +15,9 @@ Example:
 ```json
 {
   "weapons": {
-    "blackout-sniper": {
+    "destroyer-sniper": {
       "file": "destroyer-sniper.glb",
-      "maxSize": 2.4,
+      "maxSize": 2.68,
       "rotation": [0, 3.14159, 0]
     },
     "dragon-blade": {
@@ -57,6 +57,7 @@ Supported weapon ids:
 - `blackout-sniper`
 - `storm-m4`
 - `ember-ak`
+- `destroyer-sniper`
 - `dragon-blade`
 - `butterfly-knife`
 - `shadow-dagger`

@@ -129,6 +129,33 @@ export const LOADOUT = [
     },
   },
   {
+    id: 'destroyer-sniper',
+    type: 'sniper',
+    name: 'Destroyer Anti-Materiel Sniper',
+    shortName: 'DESTROY',
+    hotkey: '7',
+    magazineSize: 3,
+    reserveAmmo: 18,
+    fireInterval: 1.42,
+    reloadTime: 2.1,
+    damage: 185,
+    range: 180,
+    recoil: 0.13,
+    adsFov: 34,
+    scopedFov: 12,
+    asset: {
+      file: 'cc0-sniper.glb',
+      maxSize: 2.68,
+      rotation: [0, Math.PI, 0],
+    },
+    palette: {
+      body: 0x1a1010,
+      metal: 0x0d0c0c,
+      accent: 0xff4d2e,
+      glow: 0xffb000,
+    },
+  },
+  {
     id: 'dragon-blade',
     type: 'knife',
     name: 'Dragon Katana',
@@ -352,6 +379,13 @@ function createRifleModel(THREE, item) {
     }
   }
 
+  if (item.id.includes('destroyer')) {
+    addBox(THREE, group, accent, [0, 0.22, -0.74], [0.48, 0.07, 0.5], 'destroyer-top-heat-rail');
+    addBox(THREE, group, accent, [0.21, 0.02, -0.9], [0.05, 0.3, 0.62], 'destroyer-side-fin-right');
+    addBox(THREE, group, accent, [-0.21, 0.02, -0.9], [0.05, 0.3, 0.62], 'destroyer-side-fin-left');
+    addCylinder(THREE, group, accent, [0, 0.02, -1.76], 0.07, 0.34, 'destroyer-muzzle-brake');
+  }
+
   return group;
 }
 
@@ -393,11 +427,12 @@ function tintExternalEquipment(THREE, holder, item) {
   const glowColor = new THREE.Color(palette.glow ?? palette.accent);
   const boostedSkin =
     item.type === 'knife' ||
+    item.id.includes('destroyer') ||
     item.id.includes('storm') ||
     item.id.includes('ember') ||
     item.type === 'sniper';
-  const tintStrength = boostedSkin ? 0.28 : 0.1;
-  const emissiveStrength = boostedSkin ? 0.22 : 0.06;
+  const tintStrength = item.id.includes('destroyer') ? 0.42 : boostedSkin ? 0.28 : 0.1;
+  const emissiveStrength = item.id.includes('destroyer') ? 0.36 : boostedSkin ? 0.22 : 0.06;
 
   holder.traverse((child) => {
     if (!child.isMesh || !child.material) {

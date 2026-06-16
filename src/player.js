@@ -224,6 +224,12 @@ function createAudioKit() {
 
   return {
     shot(item) {
+      if (item?.id === 'destroyer-sniper') {
+        noise(0.24, { gain: 0.16, frequency: 420, q: 0.46 });
+        tone(54, 0.34, { type: 'sawtooth', gain: 0.12, endRatio: 0.38 });
+        window.setTimeout(() => tone(132, 0.08, { type: 'square', gain: 0.045, endRatio: 1.18 }), 72);
+        return;
+      }
       if (item?.type === 'sniper') {
         noise(0.18, { gain: 0.12, frequency: 520, q: 0.6 });
         tone(74, 0.28, { type: 'sawtooth', gain: 0.09, endRatio: 0.45 });
@@ -795,11 +801,11 @@ export function createPlayerController({ camera, canvas, hud, raycaster, world, 
     item.ammo = state.ammo;
     state.shots += 1;
     state.lastShotAt = elapsed;
-    state.message = item.type === 'sniper' ? 'sniper_fire' : 'firing';
+    state.message = item.id === 'destroyer-sniper' ? 'destroyer_fire' : item.type === 'sniper' ? 'sniper_fire' : 'firing';
     nextShotAt = elapsed + (item.fireInterval ?? FIRE_INTERVAL);
 
-    recoilYaw += (Math.random() - 0.5) * (item.type === 'sniper' ? 0.012 : 0.006);
-    state.recoil = Math.min(state.recoil + (item.recoil ?? 0.026), item.type === 'sniper' ? 0.16 : 0.1);
+    recoilYaw += (Math.random() - 0.5) * (item.id === 'destroyer-sniper' ? 0.02 : item.type === 'sniper' ? 0.012 : 0.006);
+    state.recoil = Math.min(state.recoil + (item.recoil ?? 0.026), item.id === 'destroyer-sniper' ? 0.22 : item.type === 'sniper' ? 0.16 : 0.1);
     audio.shot(item);
 
     raycaster.setFromCamera?.(pointer, camera);
@@ -891,6 +897,7 @@ export function createPlayerController({ camera, canvas, hud, raycaster, world, 
       Digit4: 2,
       Digit5: 3,
       Digit6: 4,
+      Digit7: 5,
     };
 
     if (digitMap[event.code] !== undefined) {
