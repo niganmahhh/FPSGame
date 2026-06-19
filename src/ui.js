@@ -76,11 +76,14 @@ function readHudState(playerState = {}, worldState = {}) {
   const isMelee = Boolean(pick(playerState, ['isMelee', 'weapon.isMelee'], false));
   const aiming = Boolean(pick(playerState, ['aiming', 'weapon.aiming'], false));
   const scoped = Boolean(pick(playerState, ['scoped', 'weapon.scoped'], false));
+  const isInspecting = Boolean(pick(playerState, ['isInspecting'], false));
   const cameraMode = pick(playerState, ['cameraMode', 'viewMode'], 'third');
   const activeEquipmentIndex = numberFrom(pick(playerState, ['activeEquipmentIndex', 'weapon.index'], 0), 0);
   const equipmentSlots = Array.isArray(playerState.equipmentSlots) ? playerState.equipmentSlots : [];
   const score = numberFrom(pick(worldState, ['score', 'points'], pick(playerState, ['score'], 0)), 0);
   const wave = numberFrom(pick(worldState, ['wave', 'stage', 'round'], 1), 1);
+  const waveStatus = pick(worldState, ['waveStatus'], 'waiting');
+  const nextWaveIn = numberFrom(pick(worldState, ['nextWaveIn'], 0), 0);
   const elapsed = numberFrom(pick(worldState, ['elapsed', 'time', 'elapsedTime'], NaN), NaN);
   const timeRemaining = numberFrom(pick(worldState, ['timeRemaining', 'remainingTime', 'timer'], NaN), NaN);
   const rawTotal = pick(worldState, ['totalTargets', 'targetTotal', 'targetsTotal', 'objective.total'], undefined);
@@ -93,6 +96,8 @@ function readHudState(playerState = {}, worldState = {}) {
   const clearedTargets = numberFrom(rawCleared, numberFrom(pick(playerState, ['targetsHit', 'kills'], 0), 0));
   const monsterTotal = numberFrom(pick(worldState, ['monsterTotal', 'hostileTotal'], 0), 0);
   const monstersAlive = numberFrom(pick(worldState, ['monstersAlive', 'hostilesAlive'], 0), 0);
+  const hostilesDefeatedThisWave = numberFrom(pick(worldState, ['hostilesDefeatedThisWave'], 0), 0);
+  const waveHostilesTotal = numberFrom(pick(worldState, ['waveHostilesTotal'], monsterTotal), monsterTotal);
   const progressValue = pick(worldState, ['progress', 'targetProgress', 'objective.progress'], undefined);
   const progress = progressValue !== undefined
     ? clamp(numberFrom(progressValue, 0) <= 1 ? numberFrom(progressValue, 0) * 100 : numberFrom(progressValue, 0), 0, 100)
@@ -114,17 +119,22 @@ function readHudState(playerState = {}, worldState = {}) {
     isMelee,
     aiming,
     scoped,
+    isInspecting,
     cameraMode,
     activeEquipmentIndex,
     equipmentSlots,
     score,
     wave,
+    waveStatus,
+    nextWaveIn,
     elapsed,
     timeRemaining,
     totalTargets,
     clearedTargets,
     monsterTotal,
     monstersAlive,
+    hostilesDefeatedThisWave,
+    waveHostilesTotal,
     progress,
     pointerLocked,
     paused,
@@ -312,9 +322,15 @@ export function createHud(root) {
     root.dataset.scoped = String(state.scoped);
 
     objectiveTitle.textContent = state.objective;
-    objectiveMeta.textContent = state.monsterTotal > 0
-      ? `${state.clearedTargets} / ${state.totalTargets || 0} targets | ${state.monstersAlive} / ${state.monsterTotal} hostiles`
-      : `${state.clearedTargets} / ${state.totalTargets || 0} targets`;
+    if (state.monsterTotal > 0) {
+      const waveTotal = state.waveHostilesTotal || state.monsterTotal;
+      const waveMeta = `${state.hostilesDefeatedThisWave} / ${waveTotal} hostiles`;
+      objectiveMeta.textContent = state.waveStatus === 'intermission'
+        ? `${waveMeta} | next wave in ${formatTime(state.nextWaveIn)}`
+        : `${waveMeta} | ${state.monstersAlive} active`;
+    } else {
+      objectiveMeta.textContent = `${state.clearedTargets} / ${state.totalTargets || 0} targets`;
+    }
     objectiveFill.style.width = `${state.progress}%`;
     scoreValue.textContent = String(Math.round(state.score));
     waveValue.textContent = String(Math.max(1, Math.round(state.wave)));
@@ -367,6 +383,8 @@ export function createHud(root) {
       message.textContent = manualMessage;
     } else if (transientMessage) {
       message.textContent = transientMessage;
+    } else if (state.isInspecting) {
+      message.textContent = 'Inspecting weapon';
     } else if (!hasStarted && !state.pointerLocked) {
       message.textContent = 'Press the entry control to begin.';
     } else if (!state.pointerLocked) {

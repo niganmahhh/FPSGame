@@ -1,5 +1,6 @@
 import { LOADOUT, createEquipmentModel, isFirearm } from './arsenal.js';
 import { mountExternalModel } from './modelAssets.js';
+import { createAudioKit, createAudioSampler } from './audio.js';
 
 const MOVE_SPEED = 5.4;
 const SPRINT_SPEED = 8.2;
@@ -27,6 +28,7 @@ const CAMERA_DISTANCE = 5.8;
 const CAMERA_HEIGHT = 1.55;
 const SHOULDER_OFFSET = 0.72;
 const CAMERA_SMOOTHING = 16;
+const INSPECT_DURATION = 2.6;
 
 function clamp(value, min, max) {
   return Math.min(Math.max(value, min), max);
@@ -157,106 +159,9 @@ function hotkeyForSlot(index, item) {
   return String(index + 2);
 }
 
-function createAudioKit() {
-  let context = null;
-
-  function ensureContext() {
-    try {
-      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-      if (!AudioContextClass) {
-        return null;
-      }
-      if (!context) {
-        context = new AudioContextClass();
-      }
-      if (context.state === 'suspended') {
-        context.resume();
-      }
-      return context;
-    } catch {
-      return null;
-    }
-  }
-
-  function tone(frequency, duration, options = {}) {
-    const ctx = ensureContext();
-    if (!ctx) {
-      return;
-    }
-
-    const now = ctx.currentTime;
-    const oscillator = ctx.createOscillator();
-    const gain = ctx.createGain();
-    oscillator.type = options.type || 'sine';
-    oscillator.frequency.setValueAtTime(frequency, now);
-    oscillator.frequency.exponentialRampToValueAtTime(Math.max(40, frequency * (options.endRatio ?? 0.55)), now + duration);
-    gain.gain.setValueAtTime(options.gain ?? 0.08, now);
-    gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
-    oscillator.connect(gain).connect(ctx.destination);
-    oscillator.start(now);
-    oscillator.stop(now + duration);
-  }
-
-  function noise(duration, options = {}) {
-    const ctx = ensureContext();
-    if (!ctx) {
-      return;
-    }
-
-    const frameCount = Math.max(1, Math.floor(ctx.sampleRate * duration));
-    const buffer = ctx.createBuffer(1, frameCount, ctx.sampleRate);
-    const data = buffer.getChannelData(0);
-    for (let index = 0; index < frameCount; index += 1) {
-      data[index] = (Math.random() * 2 - 1) * (1 - index / frameCount);
-    }
-
-    const source = ctx.createBufferSource();
-    const filter = ctx.createBiquadFilter();
-    const gain = ctx.createGain();
-    filter.type = options.filterType || 'bandpass';
-    filter.frequency.value = options.frequency ?? 900;
-    filter.Q.value = options.q ?? 0.9;
-    gain.gain.value = options.gain ?? 0.05;
-    source.buffer = buffer;
-    source.connect(filter).connect(gain).connect(ctx.destination);
-    source.start();
-  }
-
-  return {
-    shot(item) {
-      if (item?.id === 'destroyer-sniper') {
-        noise(0.24, { gain: 0.16, frequency: 420, q: 0.46 });
-        tone(54, 0.34, { type: 'sawtooth', gain: 0.12, endRatio: 0.38 });
-        window.setTimeout(() => tone(132, 0.08, { type: 'square', gain: 0.045, endRatio: 1.18 }), 72);
-        return;
-      }
-      if (item?.type === 'sniper') {
-        noise(0.18, { gain: 0.12, frequency: 520, q: 0.6 });
-        tone(74, 0.28, { type: 'sawtooth', gain: 0.09, endRatio: 0.45 });
-        return;
-      }
-      noise(0.09, { gain: 0.075, frequency: 1100, q: 0.8 });
-      tone(120, 0.12, { type: 'square', gain: 0.04, endRatio: 0.62 });
-    },
-    knife() {
-      noise(0.08, { gain: 0.04, frequency: 1800, q: 1.6 });
-      tone(220, 0.08, { type: 'triangle', gain: 0.035, endRatio: 1.45 });
-    },
-    equip(isMelee = false) {
-      tone(isMelee ? 310 : 230, 0.055, { type: 'triangle', gain: 0.035, endRatio: isMelee ? 1.35 : 0.82 });
-      window.setTimeout(() => tone(isMelee ? 470 : 285, 0.045, { type: 'square', gain: 0.022, endRatio: 0.74 }), 58);
-    },
-    hit(eliminated = false) {
-      tone(eliminated ? 520 : 390, 0.09, { type: 'triangle', gain: eliminated ? 0.08 : 0.05, endRatio: 1.25 });
-    },
-    damage() {
-      tone(90, 0.16, { type: 'sawtooth', gain: 0.08, endRatio: 0.55 });
-    },
-    reload() {
-      tone(180, 0.06, { type: 'square', gain: 0.035, endRatio: 1.4 });
-      window.setTimeout(() => tone(260, 0.06, { type: 'square', gain: 0.03, endRatio: 0.8 }), 110);
-    },
-  };
+function createAudioKitInstance() {
+  const sampler = createAudioSampler();
+  return createAudioKit({ sampler });
 }
 
 function createAvatar(THREE) {
@@ -338,7 +243,7 @@ export function createPlayerController({ camera, canvas, hud, raycaster, world, 
   const pointer = new THREE.Vector2(0, 0);
   const targetFlashes = [];
   const originalMaterials = new WeakMap();
-  const audio = createAudioKit();
+  const audio = createAudioKitInstance();
   const loadout = LOADOUT.map((item) => ({
     ...item,
     ammo: isFirearm(item) ? item.magazineSize : 0,
@@ -409,6 +314,9 @@ export function createPlayerController({ camera, canvas, hud, raycaster, world, 
     lastHitAt: -Infinity,
     lastHit: null,
     message: 'ready',
+    isInspecting: false,
+    inspectProgress: 0,
+    inspectDuration: 2.6,
   };
 
   avatar.position.copy(state.position);
@@ -422,6 +330,7 @@ export function createPlayerController({ camera, canvas, hud, raycaster, world, 
   let recoilYaw = 0;
   let currentElapsed = 0;
   let lastWheelSwitchAt = 0;
+  let inspectEndsAt = 0;
 
   function activeEquipment() {
     return loadout[activeEquipmentIndex];
@@ -472,6 +381,58 @@ export function createPlayerController({ camera, canvas, hud, raycaster, world, 
     updateViewVisibility();
   }
 
+  function requestInspect(elapsed) {
+    if (!state.alive || state.isInspecting) {
+      return;
+    }
+    state.isInspecting = true;
+    state.inspectProgress = 0;
+    state.inspectDuration = INSPECT_DURATION;
+    inspectEndsAt = elapsed + INSPECT_DURATION;
+    audio.inspect(activeEquipment().id);
+    state.message = 'inspecting';
+    callOptional(hud?.flashMessage, 'Inspecting weapon');
+  }
+
+  // Drives the procedural inspect animation on the first-person weapon socket.
+  // Firearms get a full Y-axis turn + lift toward center; knives spin around
+  // the blade axis. All easing is sine-based so the start/end are gentle.
+  function updateInspect(delta, elapsed) {
+    if (!state.isInspecting) {
+      return;
+    }
+
+    if (elapsed >= inspectEndsAt) {
+      state.isInspecting = false;
+      state.inspectProgress = 0;
+      state.message = 'ready';
+      return;
+    }
+
+    const progress = clamp(1 - (inspectEndsAt - elapsed) / state.inspectDuration, 0, 1);
+    state.inspectProgress = progress;
+
+    const item = activeEquipment();
+    const isKnife = item.type === 'knife';
+
+    if (isKnife) {
+      // Spin the blade around its long (Y) axis so the edge faces the player.
+      const spin = Math.sin(progress * Math.PI); // 0 -> 1 -> 0
+      firstPersonSocket.rotation.x = spin * Math.PI * 2;
+      firstPersonSocket.rotation.y = -0.28 + spin * 0.5;
+      firstPersonSocket.position.z = spin * 0.12;
+    } else {
+      // Firearm: one full Y turn + slight lift and centre pull.
+      const lift = Math.sin(progress * Math.PI); // 0 -> 1 -> 0
+      const turn = progress * Math.PI * 2;
+      firstPersonSocket.rotation.y = -0.16 + turn;
+      firstPersonSocket.rotation.z = 0.02 + Math.sin(progress * Math.PI * 2) * 0.06;
+      firstPersonSocket.position.x = lift * -0.18; // pull toward centre
+      firstPersonSocket.position.y = lift * 0.12; // raise slightly
+      firstPersonSocket.position.z = lift * 0.08; // bring closer to face
+    }
+  }
+
   function updateViewVisibility() {
     const firstPerson = state.cameraMode === 'first';
     avatar.visible = !firstPerson;
@@ -495,6 +456,11 @@ export function createPlayerController({ camera, canvas, hud, raycaster, world, 
     const nextIndex = ((index % loadout.length) + loadout.length) % loadout.length;
     if (nextIndex === activeEquipmentIndex) {
       return;
+    }
+
+    if (state.isInspecting) {
+      state.isInspecting = false;
+      state.inspectProgress = 0;
     }
 
     saveEquipmentAmmo();
@@ -761,7 +727,7 @@ export function createPlayerController({ camera, canvas, hud, raycaster, world, 
 
   function fire(elapsed) {
     const item = activeEquipment();
-    if (!state.alive || state.isReloading || elapsed < nextShotAt) {
+    if (!state.alive || state.isReloading || state.isInspecting || elapsed < nextShotAt) {
       return;
     }
 
@@ -886,6 +852,10 @@ export function createPlayerController({ camera, canvas, hud, raycaster, world, 
       toggleCameraMode();
     }
 
+    if (event.code === 'KeyF') {
+      requestInspect(currentElapsed);
+    }
+
     if (event.code === 'KeyQ' || event.code === 'Digit3') {
       switchToKnife();
       return;
@@ -939,6 +909,10 @@ export function createPlayerController({ camera, canvas, hud, raycaster, world, 
     reloadQueued = false;
     state.sprinting = false;
     setAiming(false);
+    if (state.isInspecting) {
+      state.isInspecting = false;
+      state.inspectProgress = 0;
+    }
   }
 
   function updateMovement(delta) {
@@ -1123,6 +1097,7 @@ export function createPlayerController({ camera, canvas, hud, raycaster, world, 
     }
 
     updateCamera(delta, elapsed);
+    updateInspect(delta, elapsed);
 
     if (world?.state?.player) {
       world.state.player.position = state.position;

@@ -1,5 +1,37 @@
 import { mountExternalModel } from './modelAssets.js';
 
+function createMonsterVariants(THREE) {
+  return {
+    runner: {
+      label: 'Runner',
+      healthScale: 0.78,
+      speedScale: 1.32,
+      damageScale: 0.86,
+      scale: 0.92,
+      color: new THREE.Color(0x5fa392),
+      emissive: new THREE.Color(0x071f1a),
+    },
+    guard: {
+      label: 'Guard',
+      healthScale: 1,
+      speedScale: 1,
+      damageScale: 1,
+      scale: 1,
+      color: new THREE.Color(0x6ca35f),
+      emissive: new THREE.Color(0x081908),
+    },
+    brute: {
+      label: 'Brute',
+      healthScale: 1.35,
+      speedScale: 0.82,
+      damageScale: 1.32,
+      scale: 1.12,
+      color: new THREE.Color(0x95a45d),
+      emissive: new THREE.Color(0x1d1908),
+    },
+  };
+}
+
 export function createWorld({ scene, THREE }) {
   if (!scene || !THREE) {
     throw new Error('createWorld requires scene and THREE.');
@@ -7,6 +39,12 @@ export function createWorld({ scene, THREE }) {
 
   const state = {
     score: 0,
+    wave: 1,
+    waveStatus: 'waiting',
+    nextWaveAt: 0,
+    nextWaveIn: 0,
+    hostilesDefeatedThisWave: 0,
+    waveHostilesTotal: 0,
     hits: 0,
     totalTargets: 0,
     monsterTotal: 0,
@@ -40,6 +78,7 @@ export function createWorld({ scene, THREE }) {
   const targets = [];
   const effects = [];
   let pendingPlayerDamage = 0;
+  const MONSTER_VARIANTS = createMonsterVariants(THREE);
 
   const boxGeometry = new THREE.BoxGeometry(1, 1, 1);
   const planeGeometry = new THREE.PlaneGeometry(1, 1);
@@ -109,6 +148,7 @@ export function createWorld({ scene, THREE }) {
 
   addMonster({
     id: 'cactoro-left',
+    variant: 'brute',
     position: new THREE.Vector3(-10.8, 0, -47),
     patrolRadius: 4.2,
     speed: 2.2,
@@ -117,6 +157,7 @@ export function createWorld({ scene, THREE }) {
   });
   addMonster({
     id: 'cactoro-mid',
+    variant: 'guard',
     position: new THREE.Vector3(8.8, 0, -42),
     patrolRadius: 3.4,
     speed: 2.6,
@@ -125,6 +166,7 @@ export function createWorld({ scene, THREE }) {
   });
   addMonster({
     id: 'cactoro-fast',
+    variant: 'runner',
     position: new THREE.Vector3(0, 0, -33),
     patrolRadius: 5.4,
     speed: 3.1,
@@ -160,6 +202,7 @@ export function createWorld({ scene, THREE }) {
     const monster = createMonster(THREE, {
       boxGeometry,
       materials,
+      monsterVariants: MONSTER_VARIANTS,
       ...options,
     });
 
@@ -242,12 +285,13 @@ export function createWorld({ scene, THREE }) {
     }
 
     monster.active = false;
-    monster.cooldown = monster.respawnDelay;
+    monster.cooldown = Infinity;
     monster.hitbox.userData.active = false;
     monster.group.visible = false;
     monster.health = 0;
 
     state.hits += 1;
+    state.hostilesDefeatedThisWave += 1;
     state.score += monster.scoreValue;
     state.combo = state.comboTimer > 0 ? state.combo + 1 : 1;
     state.comboTimer = 2.2;
@@ -255,6 +299,7 @@ export function createWorld({ scene, THREE }) {
 
     spawnHitEffect(monster);
     updateTargetCounts();
+    scheduleNextWaveIfCleared();
 
     return {
       hit: true,
@@ -269,8 +314,14 @@ export function createWorld({ scene, THREE }) {
     state.elapsed = elapsed;
 
     if (state.player.pointerLocked && state.player.health > 0) {
+      const wasWaiting = !state.player.hasEngaged;
       state.player.hasEngaged = true;
+      if (wasWaiting && state.waveStatus === 'waiting') {
+        activateMonsterWave(1, elapsed);
+      }
     }
+
+    updateWaveTimer(elapsed);
 
     if (state.comboTimer > 0) {
       state.comboTimer = Math.max(0, state.comboTimer - delta);
@@ -290,6 +341,72 @@ export function createWorld({ scene, THREE }) {
     updateEffects(delta);
     animateRangeDetails(elapsed);
     updateTargetCounts();
+    scheduleNextWaveIfCleared();
+  }
+
+  function updateWaveTimer(elapsed) {
+    if (state.waveStatus !== 'intermission') {
+      state.nextWaveIn = 0;
+      return;
+    }
+
+    state.nextWaveIn = Math.max(0, state.nextWaveAt - elapsed);
+    if (state.nextWaveIn <= 0) {
+      activateMonsterWave(state.wave + 1, elapsed);
+    }
+  }
+
+  function scheduleNextWaveIfCleared() {
+    if (!state.player.hasEngaged || state.waveStatus !== 'active') {
+      return;
+    }
+
+    const monsters = targets.filter((target) => target.kind === 'monster');
+    if (!monsters.length || monsters.some((monster) => monster.active)) {
+      return;
+    }
+
+    state.waveStatus = 'intermission';
+    state.nextWaveAt = state.elapsed + 3.2;
+    state.nextWaveIn = Math.max(0, state.nextWaveAt - state.elapsed);
+    state.score += 125 + state.wave * 35;
+    state.status = 'wave_cleared';
+  }
+
+  function activateMonsterWave(wave, elapsed) {
+    const monsters = targets.filter((target) => target.kind === 'monster');
+    const waveScale = Math.max(0, wave - 1);
+    state.wave = wave;
+    state.waveStatus = 'active';
+    state.nextWaveAt = 0;
+    state.nextWaveIn = 0;
+    state.hostilesDefeatedThisWave = 0;
+    state.waveHostilesTotal = monsters.length;
+    state.status = wave === 1 ? 'wave_start' : 'wave_escalated';
+    state.objectiveName = wave === 1 ? 'Hostile Contact' : `Hostile Wave ${wave}`;
+
+    for (const monster of monsters) {
+      const variant = MONSTER_VARIANTS[monster.variant] ?? MONSTER_VARIANTS.guard;
+      monster.active = true;
+      monster.cooldown = 0;
+      monster.maxHealth = Math.round(monster.baseMaxHealth * variant.healthScale * (1 + waveScale * 0.24));
+      monster.health = monster.maxHealth;
+      monster.speed = monster.baseSpeed * variant.speedScale * (1 + Math.min(waveScale * 0.07, 0.35));
+      monster.attackDamage = Math.round(monster.baseAttackDamage * variant.damageScale * (1 + waveScale * 0.16));
+      monster.attackInterval = Math.max(0.62, monster.baseAttackInterval - Math.min(waveScale * 0.04, 0.22));
+      monster.aggroRange = monster.baseAggroRange + Math.min(waveScale * 1.8, 10);
+      monster.scoreValue = Math.round(monster.baseScoreValue * (1 + waveScale * 0.12));
+      monster.group.position.copy(monster.basePosition);
+      monster.group.visible = true;
+      monster.group.scale.setScalar(variant.scale * (1 + Math.min(waveScale * 0.035, 0.16)));
+      monster.hitbox.userData.active = true;
+      monster.nextAttackAt = elapsed + 0.65;
+      monster.attackFlash = 0;
+      monster.hitFlash = 0;
+      monster.bodyBaseColor.copy(variant.color).lerp(monster.waveColor, Math.min(waveScale * 0.08, 0.38));
+      monster.bodyMaterial.color.copy(monster.bodyBaseColor);
+      monster.bodyMaterial.emissive.copy(variant.emissive).multiplyScalar(0.5 + Math.min(waveScale * 0.08, 0.35));
+    }
   }
 
   function resolveTarget(targetLike) {
@@ -489,6 +606,7 @@ export function createWorld({ scene, THREE }) {
     let activeTargets = 0;
     let monsterTotal = 0;
     let monstersAlive = 0;
+    let waveHostilesTotal = 0;
 
     for (const target of targets) {
       if (target.active) {
@@ -497,6 +615,7 @@ export function createWorld({ scene, THREE }) {
 
       if (target.kind === 'monster') {
         monsterTotal += 1;
+        waveHostilesTotal += 1;
         if (target.active) {
           monstersAlive += 1;
         }
@@ -505,11 +624,16 @@ export function createWorld({ scene, THREE }) {
 
     state.totalTargets = targets.length;
     state.monsterTotal = monsterTotal;
+    state.waveHostilesTotal = waveHostilesTotal;
     state.monstersAlive = monstersAlive;
     state.activeTargets = activeTargets;
     state.inactiveTargets = targets.length - activeTargets;
     state.clearedTargets = Math.min(state.hits, state.totalTargets);
-    state.progress = state.totalTargets > 0 ? state.clearedTargets / state.totalTargets : 0;
+    state.progress = waveHostilesTotal > 0
+      ? Math.min(state.hostilesDefeatedThisWave / waveHostilesTotal, 1)
+      : state.totalTargets > 0
+        ? state.clearedTargets / state.totalTargets
+        : 0;
   }
 
   return {
@@ -977,14 +1101,20 @@ function createMonster(THREE, options) {
   const {
     boxGeometry,
     materials,
+    monsterVariants,
     id,
+    variant: variantKey = 'guard',
     position,
     speed = 2.4,
     health = 150,
     scoreValue = 200,
+    attackDamage = 9,
+    attackInterval = 1.05,
+    aggroRange = 24,
     respawnDelay = 4.5,
     patrolRadius = 4,
   } = options;
+  const variant = monsterVariants?.[variantKey] ?? monsterVariants?.guard;
 
   const group = new THREE.Group();
   group.name = `hostile-${id}`;
@@ -997,6 +1127,11 @@ function createMonster(THREE, options) {
 
   const bodyMaterial = materials.monsterBody.clone();
   const hatMaterial = materials.monsterHat.clone();
+  if (variant) {
+    bodyMaterial.color.copy(variant.color);
+    bodyMaterial.emissive.copy(variant.emissive);
+    hatMaterial.color.copy(variant.color).multiplyScalar(0.72);
+  }
   const bodyGeometry =
     typeof THREE.CapsuleGeometry === 'function'
       ? new THREE.CapsuleGeometry(0.44, 0.95, 6, 12)
@@ -1077,19 +1212,27 @@ function createMonster(THREE, options) {
     mesh: hitbox,
     hitbox,
     active: false,
-    cooldown: 0,
+    cooldown: Infinity,
     respawnDelay,
     waitForEngage: options.waitForEngage !== false,
+    variant: variantKey,
+    variantLabel: variant?.label ?? 'Hostile',
     scoreValue,
+    baseScoreValue: scoreValue,
+    baseMaxHealth: health,
     maxHealth: health,
     health,
     speed,
+    baseSpeed: speed,
     patrolRadius,
     patrolSpeed: 0.58 + Math.random() * 0.25,
-    aggroRange: 24,
+    aggroRange,
+    baseAggroRange: aggroRange,
     attackRange: 1.65,
-    attackDamage: 9,
-    attackInterval: 1.05,
+    attackDamage,
+    baseAttackDamage: attackDamage,
+    attackInterval,
+    baseAttackInterval: attackInterval,
     nextAttackAt: 0,
     hitFlash: 0,
     knock: 0,
@@ -1099,6 +1242,7 @@ function createMonster(THREE, options) {
     tempVector: new THREE.Vector3(),
     bodyMaterial,
     bodyBaseColor: bodyMaterial.color.clone(),
+    waveColor: new THREE.Color(0xffd35f),
     flashColor: new THREE.Color(0xffd35f),
     healthBar,
   };

@@ -17,7 +17,7 @@ export const LOADOUT = [
     asset: {
       file: 'cc0-ak47.glb',
       maxSize: 2.15,
-      rotation: [0, Math.PI, 0],
+      rotation: [0, 0, 0],
     },
     palette: {
       body: 0x3a2d23,
@@ -42,7 +42,7 @@ export const LOADOUT = [
     asset: {
       file: 'cc0-m4a1.glb',
       maxSize: 2.12,
-      rotation: [0, Math.PI, 0],
+      rotation: [0, 0, 0],
     },
     palette: {
       body: 0x263540,
@@ -69,7 +69,7 @@ export const LOADOUT = [
     asset: {
       file: 'cc0-sniper.glb',
       maxSize: 2.45,
-      rotation: [0, Math.PI, 0],
+      rotation: [0, 0, 0],
     },
     palette: {
       body: 0x141a20,
@@ -94,7 +94,7 @@ export const LOADOUT = [
     asset: {
       file: 'cc0-m4a1.glb',
       maxSize: 2.16,
-      rotation: [0, Math.PI, 0],
+      rotation: [0, 0, 0],
     },
     palette: {
       body: 0x182237,
@@ -119,7 +119,7 @@ export const LOADOUT = [
     asset: {
       file: 'cc0-ak47.glb',
       maxSize: 2.18,
-      rotation: [0, Math.PI, 0],
+      rotation: [0, 0, 0],
     },
     palette: {
       body: 0x3b1510,
@@ -146,7 +146,7 @@ export const LOADOUT = [
     asset: {
       file: 'cc0-sniper.glb',
       maxSize: 2.68,
-      rotation: [0, Math.PI, 0],
+      rotation: [0, 0, 0],
     },
     palette: {
       body: 0x1a1010,
