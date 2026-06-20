@@ -94,7 +94,7 @@ export const LOADOUT = [
     asset: {
       file: 'assault-rifle-alt.glb',
       maxSize: 1.72,
-      rotation: [0, Math.PI, 0],
+      rotation: [0, Math.PI / 2, 0],
     },
     palette: {
       body: 0x182237,
@@ -119,7 +119,7 @@ export const LOADOUT = [
     asset: {
       file: 'assault-rifle.glb',
       maxSize: 1.76,
-      rotation: [0, Math.PI, 0],
+      rotation: [0, Math.PI / 2, 0],
     },
     palette: {
       body: 0x3b1510,
@@ -146,7 +146,7 @@ export const LOADOUT = [
     asset: {
       file: 'sniper-rifle-alt.glb',
       maxSize: 2.48,
-      rotation: [0, Math.PI, 0],
+      rotation: [0, Math.PI / 2, 0],
     },
     palette: {
       body: 0x1a1010,
