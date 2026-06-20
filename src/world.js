@@ -570,7 +570,11 @@ export function createWorld({ scene, THREE }) {
 
     if (distanceToPlayer < monster.aggroRange && distanceToPlayer > 0.001) {
       desired.normalize();
-      monster.group.position.addScaledVector(desired, monster.speed * delta);
+      const stopDistance = monster.attackRange * 0.9;
+      if (distanceToPlayer > stopDistance) {
+        const step = Math.min(monster.speed * delta, distanceToPlayer - stopDistance);
+        monster.group.position.addScaledVector(desired, step);
+      }
       monster.group.lookAt(playerVector.x, monster.group.position.y, playerVector.z);
 
       if (distanceToPlayer < monster.attackRange && elapsed >= monster.nextAttackAt) {
