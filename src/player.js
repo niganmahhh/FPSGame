@@ -213,7 +213,7 @@ function createAvatar(THREE) {
     {
       overrideGroup: 'avatar',
       overrideKey: 'player',
-      file: 'female-fighter.glb',
+      file: 'animated-woman.glb',
       maxSize: 1.82,
       alignBottom: true,
       rotation: [0, Math.PI, 0],
@@ -394,10 +394,13 @@ export function createPlayerController({ camera, canvas, hud, raycaster, world, 
     callOptional(hud?.flashMessage, 'Inspecting weapon');
   }
 
-  // Drives the procedural inspect animation on the first-person weapon socket.
-  // Firearms get a full Y-axis turn + lift toward center; knives spin around
-  // the blade axis. All easing is sine-based so the start/end are gentle.
-  function updateInspect(delta, elapsed) {
+  function resetInspectPose() {
+    firstPersonSocket.position.z = 0;
+    firstPersonSocket.rotation.x = 0;
+    firstPersonSocket.rotation.y = 0;
+  }
+
+  function updateInspect(elapsed) {
     if (!state.isInspecting) {
       return;
     }
@@ -406,6 +409,7 @@ export function createPlayerController({ camera, canvas, hud, raycaster, world, 
       state.isInspecting = false;
       state.inspectProgress = 0;
       state.message = 'ready';
+      resetInspectPose();
       return;
     }
 
@@ -419,13 +423,13 @@ export function createPlayerController({ camera, canvas, hud, raycaster, world, 
       // Spin the blade around its long (Y) axis so the edge faces the player.
       const spin = Math.sin(progress * Math.PI); // 0 -> 1 -> 0
       firstPersonSocket.rotation.x = spin * Math.PI * 2;
-      firstPersonSocket.rotation.y = -0.28 + spin * 0.5;
+      firstPersonSocket.rotation.y = spin * 0.5;
       firstPersonSocket.position.z = spin * 0.12;
     } else {
       // Firearm: one full Y turn + slight lift and centre pull.
       const lift = Math.sin(progress * Math.PI); // 0 -> 1 -> 0
       const turn = progress * Math.PI * 2;
-      firstPersonSocket.rotation.y = -0.16 + turn;
+      firstPersonSocket.rotation.y = turn;
       firstPersonSocket.rotation.z = 0.02 + Math.sin(progress * Math.PI * 2) * 0.06;
       firstPersonSocket.position.x = lift * -0.18; // pull toward centre
       firstPersonSocket.position.y = lift * 0.12; // raise slightly
@@ -461,6 +465,7 @@ export function createPlayerController({ camera, canvas, hud, raycaster, world, 
     if (state.isInspecting) {
       state.isInspecting = false;
       state.inspectProgress = 0;
+      resetInspectPose();
     }
 
     saveEquipmentAmmo();
@@ -798,6 +803,11 @@ export function createPlayerController({ camera, canvas, hud, raycaster, world, 
       fireHeld = false;
       state.sprinting = false;
       setAiming(false);
+      if (state.isInspecting) {
+        state.isInspecting = false;
+        state.inspectProgress = 0;
+        resetInspectPose();
+      }
     }
   }
 
@@ -912,6 +922,7 @@ export function createPlayerController({ camera, canvas, hud, raycaster, world, 
     if (state.isInspecting) {
       state.isInspecting = false;
       state.inspectProgress = 0;
+      resetInspectPose();
     }
   }
 
@@ -1097,7 +1108,7 @@ export function createPlayerController({ camera, canvas, hud, raycaster, world, 
     }
 
     updateCamera(delta, elapsed);
-    updateInspect(delta, elapsed);
+    updateInspect(elapsed);
 
     if (world?.state?.player) {
       world.state.player.position = state.position;
