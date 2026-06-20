@@ -44,12 +44,12 @@ Open the local Vite URL, press `ENTER RANGE`, then click to lock mouse control.
 - Three.js 3D training range with shadows, fog, targets, cover, catwalks, and containers.
 - Third-person and first-person camera modes.
 - Mouse direction fixed to normal FPS behavior.
-- CC0/redistributable AK-47, M4A1, heavy sniper, destroyer sniper, katana, butterfly knife, dagger, combat knife, kunai, and machete loadout with procedural fallbacks.
+- CC0/redistributable AK-47, M4A1, Quaternius rifle variants, heavy sniper, destroyer sniper, katana, butterfly knife, cleaver, dagger, combat knife, kunai, and machete loadout with procedural fallbacks.
 - Right-click sniper scope overlay and zoom.
 - Simple Web Audio firearm, reload, slash, hit, and damage sounds with optional external audio overrides (drop files into `public/sounds/`).
 - Weapon inspect animation (press F) — procedural flip/slide flourish for firearms and spin flourish for melee.
-- Female fighter player avatar with first-person and third-person presentation.
-- Hostile enemy AI with Runner, Guard, and Brute variants, wave escalation, chase/attack behavior, damage, health bars, and intermission countdowns.
+- Animated Woman player avatar with first-person and third-person presentation.
+- Hostile enemy AI with distinct Ninja Runner and Cactoro Guard/Brute models, wave escalation, chase/attack behavior, damage, health bars, and intermission countdowns.
 - External CC0 GLB models loaded from `public/models`, with procedural fallback models.
 - Optional private local mod overrides from ignored `public/private-mods/mods.json`.
 
