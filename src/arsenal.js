@@ -502,9 +502,9 @@ export function createEquipmentModel(THREE, item, mode = 'third') {
     group.rotation.set(item.type === 'knife' ? -0.35 : -0.08, item.type === 'knife' ? -0.28 : -0.16, item.type === 'knife' ? -0.4 : 0.02);
     group.scale.setScalar(item.type === 'knife' ? 0.72 : item.type === 'sniper' ? 0.72 : 0.82);
   } else {
-    group.position.set(0.32, 1.23, -0.42);
-    group.rotation.set(0.05, -0.06, 0);
-    group.scale.setScalar(item.type === 'knife' ? 0.55 : item.type === 'sniper' ? 0.55 : 0.62);
+    group.position.set(item.type === 'knife' ? 0.46 : 0.56, item.type === 'knife' ? 1.16 : 1.26, item.type === 'knife' ? -0.34 : -0.5);
+    group.rotation.set(item.type === 'knife' ? 0.02 : -0.04, -0.06, 0);
+    group.scale.setScalar(item.type === 'knife' ? 0.5 : item.type === 'sniper' ? 0.48 : 0.56);
   }
 
   return group;
