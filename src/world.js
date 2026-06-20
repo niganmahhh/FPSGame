@@ -149,6 +149,11 @@ export function createWorld({ scene, THREE }) {
   addMonster({
     id: 'cactoro-left',
     variant: 'brute',
+    asset: {
+      overrideKey: 'brute',
+      file: 'cactoro.glb',
+      maxSize: 1.92,
+    },
     position: new THREE.Vector3(-10.8, 0, -47),
     patrolRadius: 4.2,
     speed: 2.2,
@@ -158,6 +163,11 @@ export function createWorld({ scene, THREE }) {
   addMonster({
     id: 'cactoro-mid',
     variant: 'guard',
+    asset: {
+      overrideKey: 'guard',
+      file: 'cactoro.glb',
+      maxSize: 1.78,
+    },
     position: new THREE.Vector3(8.8, 0, -42),
     patrolRadius: 3.4,
     speed: 2.6,
@@ -167,6 +177,11 @@ export function createWorld({ scene, THREE }) {
   addMonster({
     id: 'cactoro-fast',
     variant: 'runner',
+    asset: {
+      overrideKey: 'runner',
+      file: 'ninja.glb',
+      maxSize: 1.72,
+    },
     position: new THREE.Vector3(0, 0, -33),
     patrolRadius: 5.4,
     speed: 3.1,
@@ -1111,6 +1126,7 @@ function createMonster(THREE, options) {
     attackDamage = 9,
     attackInterval = 1.05,
     aggroRange = 24,
+    asset = null,
     respawnDelay = 4.5,
     patrolRadius = 4,
   } = options;
@@ -1171,11 +1187,12 @@ function createMonster(THREE, options) {
     modelSocket,
     {
       overrideGroup: 'monsters',
-      overrideKey: 'cactoro',
-      file: 'cactoro.glb',
-      maxSize: 1.86,
+      overrideKey: asset?.overrideKey ?? variantKey,
+      file: asset?.file ?? 'cactoro.glb',
+      maxSize: asset?.maxSize ?? 1.86,
       alignBottom: true,
       rotation: [0, Math.PI, 0],
+      ...asset,
     },
     fallback,
   );
