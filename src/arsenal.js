@@ -92,9 +92,9 @@ export const LOADOUT = [
     range: 96,
     recoil: 0.018,
     asset: {
-      file: 'cc0-m4a1.glb',
-      maxSize: 2.16,
-      rotation: [0, 0, 0],
+      file: 'assault-rifle-alt.glb',
+      maxSize: 1.72,
+      rotation: [0, Math.PI, 0],
     },
     palette: {
       body: 0x182237,
@@ -117,9 +117,9 @@ export const LOADOUT = [
     range: 86,
     recoil: 0.03,
     asset: {
-      file: 'cc0-ak47.glb',
-      maxSize: 2.18,
-      rotation: [0, 0, 0],
+      file: 'assault-rifle.glb',
+      maxSize: 1.76,
+      rotation: [0, Math.PI, 0],
     },
     palette: {
       body: 0x3b1510,
@@ -144,9 +144,9 @@ export const LOADOUT = [
     adsFov: 34,
     scopedFov: 12,
     asset: {
-      file: 'cc0-sniper.glb',
-      maxSize: 2.68,
-      rotation: [0, 0, 0],
+      file: 'sniper-rifle-alt.glb',
+      maxSize: 2.48,
+      rotation: [0, Math.PI, 0],
     },
     palette: {
       body: 0x1a1010,
@@ -219,6 +219,28 @@ export const LOADOUT = [
       metal: 0xcbd7df,
       accent: 0x9b7cff,
       glow: 0xb5a1ff,
+    },
+  },
+  {
+    id: 'titan-cleaver',
+    type: 'knife',
+    name: 'Titan Butcher Cleaver',
+    shortName: 'CLEAVER',
+    hotkey: 'Q',
+    fireInterval: 0.5,
+    damage: 118,
+    range: 4.1,
+    recoil: 0.017,
+    asset: {
+      file: 'butcher-knife.glb',
+      maxSize: 1.45,
+      rotation: [-0.15, 0, -0.62],
+    },
+    palette: {
+      body: 0x211a16,
+      metal: 0xcfd4d5,
+      accent: 0xff784a,
+      glow: 0xffad62,
     },
   },
   {
