@@ -40,9 +40,21 @@ Example:
     }
   },
   "monsters": {
-    "cactoro": {
+    "runner": {
+      "file": "runner-monster.glb",
+      "maxSize": 1.72,
+      "alignBottom": true,
+      "rotation": [0, 3.14159, 0]
+    },
+    "guard": {
       "file": "monster.glb",
       "maxSize": 1.86,
+      "alignBottom": true,
+      "rotation": [0, 3.14159, 0]
+    },
+    "brute": {
+      "file": "brute-monster.glb",
+      "maxSize": 1.92,
       "alignBottom": true,
       "rotation": [0, 3.14159, 0]
     }
@@ -61,6 +73,7 @@ Supported weapon ids:
 - `dragon-blade`
 - `butterfly-knife`
 - `shadow-dagger`
+- `titan-cleaver`
 - `combat-knife`
 - `kunai-blade`
 - `machete-blade`
