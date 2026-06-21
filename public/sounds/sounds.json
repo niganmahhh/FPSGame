@@ -1,0 +1,14 @@
+{
+  "ui": {
+    "equip": "sounds/kenney-interface/switch_006.wav",
+    "equipMelee": "sounds/kenney-interface/switch_006.wav",
+    "inspect": "sounds/kenney-interface/maximize_003.wav",
+    "reload": "sounds/kenney-interface/click_002.wav",
+    "hit": "sounds/kenney-interface/confirmation_001.wav",
+    "eliminate": "sounds/kenney-interface/confirmation_004.wav",
+    "damage": "sounds/kenney-interface/error_003.wav"
+  },
+  "knife": {
+    "fire": "sounds/kenney-interface/scratch_004.wav"
+  }
+}
