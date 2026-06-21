@@ -210,8 +210,15 @@ export function createAudioKit({ sampler = null } = {}) {
     },
 
     async equip(isMelee = false) {
+      const event = isMelee ? 'equipMelee' : 'equip';
+      if (sampler && (await sampler.play('ui', event, {
+        gain: isMelee ? 0.42 : 0.36,
+        playbackRate: isMelee ? 1.08 : 0.94,
+      }))) {
+        return;
+      }
+
       const c = ctx();
-      // Mechanical switch click: two short clicks.
       noise(c, 0.03, { gain: 0.06, frequency: isMelee ? 2600 : 1800, q: 2.4, filterType: 'bandpass' });
       tone(c, isMelee ? 310 : 230, 0.055, { type: 'triangle', gain: 0.04, endRatio: isMelee ? 1.35 : 0.82 });
       window.setTimeout(() => {
@@ -222,28 +229,52 @@ export function createAudioKit({ sampler = null } = {}) {
     },
 
     async inspect(itemId = null) {
-      if (sampler && itemId && (await sampler.play(itemId, 'inspect', { gain: 0.8 }))) {
-        return;
+      if (sampler) {
+        if (itemId && (await sampler.play(itemId, 'inspect', { gain: 0.58 }))) {
+          return;
+        }
+        if (await sampler.play('ui', 'inspect', { gain: 0.34 })) {
+          return;
+        }
       }
+
       const c = ctx();
-      // Mechanical click + short rising chime to mark the inspect flourish.
       noise(c, 0.04, { gain: 0.05, frequency: 2200, q: 2.2, filterType: 'bandpass' });
       tone(c, 440, 0.08, { type: 'triangle', gain: 0.04, endRatio: 1.4 });
       window.setTimeout(() => tone(c, 660, 0.1, { type: 'triangle', gain: 0.035, endRatio: 1.3 }), 90);
     },
 
-    hit(eliminated = false) {
+    async hit(eliminated = false) {
+      const event = eliminated ? 'eliminate' : 'hit';
+      if (sampler && (await sampler.play('ui', event, {
+        gain: eliminated ? 0.5 : 0.32,
+        playbackRate: eliminated ? 1.04 : 1.16,
+      }))) {
+        return;
+      }
+
       const c = ctx();
       tone(c, eliminated ? 520 : 390, 0.09, { type: 'triangle', gain: eliminated ? 0.08 : 0.05, endRatio: 1.25 });
     },
 
-    damage() {
+    async damage() {
+      if (sampler && (await sampler.play('ui', 'damage', { gain: 0.38, playbackRate: 0.92 }))) {
+        return;
+      }
+
       const c = ctx();
       punch(c, 90, 0.16, 0.1);
       tone(c, 90, 0.16, { type: 'sawtooth', gain: 0.08, endRatio: 0.55 });
     },
 
-    reload() {
+    async reload() {
+      if (sampler && (await sampler.play('ui', 'reload', { gain: 0.48, playbackRate: 0.9 }))) {
+        window.setTimeout(() => {
+          sampler.play('ui', 'reload', { gain: 0.4, playbackRate: 1.12 });
+        }, 118);
+        return;
+      }
+
       const c = ctx();
       noise(c, 0.04, { gain: 0.05, frequency: 1400, q: 2.4, filterType: 'bandpass' });
       tone(c, 180, 0.06, { type: 'square', gain: 0.035, endRatio: 1.4 });
